@@ -11,7 +11,7 @@
 #include <cmath>        // INFINITY
 #include <iomanip>      // setprecision
 #include <algorithm>    // equal
-#define INFO_MODE
+// #define INFO_MODE
 #define COMPARE_LENGTH_MODE
 
 bool compareFiles(const char *filename) { // https://stackoverflow.com/a/37575457
