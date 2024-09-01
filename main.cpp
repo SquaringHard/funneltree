@@ -11,7 +11,7 @@
 #include <cmath>        // INFINITY
 #include <iomanip>      // setprecision
 #include <algorithm>    // equal
-// #define INFO_MODE
+#define INFO_MODE
 #define COMPARE_LENGTH_MODE
 
 bool compareFiles(const char *filename) { // https://stackoverflow.com/a/37575457
@@ -65,8 +65,8 @@ void run(const char *filename) {
     cout << "Funnel tree initialized with " << numOfNodes << " nodes in " << duration.count() << " milliseconds.\n";
 
     #ifdef INFO_MODE
-        PrintTreeLvlByLvl(tree, (string("output2/") + filename).c_str());
-        PrintTreeParent2Child(tree, (string("output3/") + filename).c_str());
+        PrintTreeLvlByLvl(tree, (string("outputFunnelInfo/") + filename).c_str());
+        PrintTreeParent2Child(tree, (string("outputTree/") + filename).c_str());
     #endif
 
     #ifdef COMPARE_LENGTH_MODE
@@ -128,7 +128,7 @@ int main(int argc, const char *argv[]) {
                **files;
     if (argc > 1) files = argv; else { files = allfiles; argc = sizeof(allfiles) / sizeof(*allfiles); }
     for (int i = 1; i < argc; i++) {
-        // run(files[i]);
-        time(files[i]);
+        run(files[i]);
+        // time(files[i]);
     }
 }

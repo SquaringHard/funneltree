@@ -1,0 +1,4 @@
+# **/*.geom
+!input/
+!expectedLength/
+*.exe
