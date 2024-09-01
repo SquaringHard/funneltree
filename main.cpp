@@ -128,7 +128,7 @@ int main(int argc, const char *argv[]) {
                **files;
     if (argc > 1) files = argv; else { files = allfiles; argc = sizeof(allfiles) / sizeof(*allfiles); }
     for (int i = 1; i < argc; i++) {
-        run(files[i]);
-        // time(files[i]);
+        // run(files[i]);
+        time(files[i]);
     }
 }

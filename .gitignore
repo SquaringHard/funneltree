@@ -2,3 +2,4 @@
 !input/
 !expectedLength/
 *.exe
+.vscode/

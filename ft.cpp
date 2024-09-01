@@ -102,7 +102,7 @@ vector<vector<Funnel*>> FunnelTree(const Point &s, const TriangleMesh& mesh) {
     FunnelDict twoChildrenFunnels;
     while (true) {
         vector<Funnel*> next_lvl;
-        next_lvl.reserve(tree.back().size());  // 0 <= next_lvl.size() <= tree.back().size() * 2 so this is an estimation
+        // next_lvl.reserve(tree.back().size());  // 0 <= next_lvl.size() <= tree.back().size() * 2 so this is an estimation
 
         #pragma omp declare reduction(push_back : vector<Funnel*> : omp_out.insert(omp_out.end(), omp_in.begin(), omp_in.end()))
         #pragma omp parallel for reduction(push_back : next_lvl)
