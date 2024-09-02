@@ -74,7 +74,6 @@ vector<vector<Funnel*>> FunnelTree(const Point &s, const TriangleMesh& mesh) {
 
     vector<vector<Funnel*>> tree = {{}};
     tree.reserve(mesh.triangles.size());
-    tree[0].reserve(deg_s);
     for (indexType i = 0; i < deg_s; i++) {
         const Triangle pqv = mesh.triangles[facesAt_s[i]];
         const Point *p, *q;
