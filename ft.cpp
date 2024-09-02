@@ -66,44 +66,44 @@ void Funnel::remove() {
     if (childVQ != nullptr) childVQ->remove();
 }
 
-vector<vector<Funnel*>> FunnelTree(const Point &s, const TriangleMesh& mesh) {
+vector<Funnel*> FunnelTree(const Point &s, const TriangleMesh& mesh) {
     const PointDict::const_iterator dictVerticesAt_s = mesh.dictVertices.find(s);
     if (dictVerticesAt_s == mesh.dictVertices.end()) return {};
     const vector<indexType> &facesAt_s = dictVerticesAt_s->second;
     const indexType deg_s = facesAt_s.size();
 
-    vector<vector<Funnel*>> tree = {{}};
-    tree.reserve(mesh.triangles.size());
-    for (indexType i = 0; i < deg_s; i++) {
-        const Triangle pqv = mesh.triangles[facesAt_s[i]];
-        const Point *p, *q;
-        if (s == *pqv.a) {
-            q = pqv.b;
-            p = pqv.c;
-        } else if (s == *pqv.b) {
-            q = pqv.c;
-            p = pqv.a;
-        } else {
-            q = pqv.a;
-            p = pqv.b;
-        }
-
-        const double spq = angle(&s, p, q), psw = angle(p, &s, q);
-
-        // insert all faces containing s instead of just 1 face to sequence so that the funnels never reach these faces again
-        // because then the funnels don't have to reach the vertices on these faces
-        vector<indexType> newSequence = facesAt_s;
-        swap(newSequence[i], newSequence.back());
-        tree[0].push_back(new Funnel(p, q, p, newSequence, distance(&s, p), distance(p, q), spq, psw, psw));
-    }
-
+    vector<Funnel*> list;
     typedef unordered_map<array<const Point*, 3>, const Funnel*, Hasher> FunnelDict;
     FunnelDict twoChildrenFunnels;
-    while (true) {
-        vector<Funnel*> next_lvl;
-        #pragma omp declare reduction(push_back : vector<Funnel*> : omp_out.insert(omp_out.end(), omp_in.begin(), omp_in.end()))
-        #pragma omp parallel for reduction(push_back : next_lvl)
-        for (Funnel *const funnel : tree.back()) {
+    #pragma omp declare reduction(push_back : vector<Funnel*> : omp_out.insert(omp_out.end(), omp_in.begin(), omp_in.end()))
+    #pragma omp parallel reduction(push_back : list)
+    {
+        #pragma omp for
+        for (indexType i = 0; i < deg_s; i++) {
+            const Triangle pqv = mesh.triangles[facesAt_s[i]];
+            const Point *p, *q;
+            if (s == *pqv.a) {
+                q = pqv.b;
+                p = pqv.c;
+            } else if (s == *pqv.b) {
+                q = pqv.c;
+                p = pqv.a;
+            } else {
+                q = pqv.a;
+                p = pqv.b;
+            }
+
+            const double spq = angle(&s, p, q), psw = angle(p, &s, q);
+
+            // insert all faces containing s instead of just 1 face to sequence so that the funnels never reach these faces again
+            // because then the funnels don't have to reach the vertices on these faces
+            vector<indexType> newSequence = facesAt_s;
+            swap(newSequence[i], newSequence.back());
+            list.push_back(new Funnel(p, q, p, newSequence, distance(&s, p), distance(p, q), spq, psw, psw));
+        }
+
+        for (size_t i = 0; i < list.size(); i++) {
+            Funnel *const funnel = list[i];
             if (funnel->removed) continue;
             const Point *const q = funnel->q, *const p = funnel->p, *v = funnel->x, *x;
             const double pq = funnel->pq, sp = funnel->sp;
@@ -133,16 +133,16 @@ vector<vector<Funnel*>> FunnelTree(const Point &s, const TriangleMesh& mesh) {
             if (spv >= M_PI) continue;
 
             const double sv = calPV(spv, sp, pv), psv = angle(sp, sv, pv), pvq = angle(pv, vq, pq), psw = min(funnel->psw, psv),
-                         top_right_new = max(angle(x, v, q) - pvq * sign, 0.0);
+                            top_right_new = max(angle(x, v, q) - pvq * sign, 0.0);
             Funnel *const childPV = new Funnel(p, v, x, sequence, sp, pv, spv, psv, psw, top_right_new);
             funnel->childPV = childPV;
-            next_lvl.push_back(childPV);
+            list.push_back(childPV);
 
             if (!(psv < funnel->psw)) continue; // don't question it
             const double pvs = angle(pv, sv, sp), vsq = funnel->psq - psv, vsw = funnel->psw - psv;
             Funnel *const childVQ = new Funnel(v, q, v, sequence, sv, vq, pvq - pvs, vsq, vsw);
             funnel->childVQ = childVQ;
-            next_lvl.push_back(childVQ);
+            list.push_back(childVQ);
 
             pair<FunnelDict::iterator, bool> temp;
             #pragma omp critical
@@ -170,12 +170,9 @@ vector<vector<Funnel*>> FunnelTree(const Point &s, const TriangleMesh& mesh) {
                 oldChildPV->remove();
             }
         }
-
-        if (next_lvl.empty()) break;
-        tree.push_back(next_lvl);
     }
 
-    return tree;
+    return list;
 }
 
 inline double rad2deg(const double rad) { return rad * (180 / M_PI); }

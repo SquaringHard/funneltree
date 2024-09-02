@@ -55,14 +55,10 @@ void run(const char *filename) {
     
     const size_t i = 0;
     const auto start = chrono::high_resolution_clock::now();
-    const vector<vector<Funnel*>> tree = FunnelTree(points[i], mesh);
+    const vector<Funnel*> list = FunnelTree(points[i], mesh);
     const auto end = chrono::high_resolution_clock::now();
     const auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
-
-    size_t numOfNodes = 0;
-    for (const vector<Funnel*> &i : tree) numOfNodes += i.size();
-
-    cout << "Funnel tree initialized with " << numOfNodes << " nodes in " << duration.count() << " milliseconds.\n";
+    cout << "Funnel tree initialized with " << list.size() << " nodes in " << duration.count() << " milliseconds.\n";
 
     #ifdef INFO_MODE
         PrintTreeLvlByLvl(tree, (string("outputFunnelInfo/") + filename).c_str());
@@ -72,7 +68,7 @@ void run(const char *filename) {
     #ifdef COMPARE_LENGTH_MODE
         vector<double> shortestLength(v, INFINITY);
         shortestLength[i] = 0;
-        for (const vector<Funnel*> &lvl : tree) for (const Funnel *const f : lvl)
+        for (const Funnel *const f : list)
             if (shortestLength[f->p->index] > f->sp) shortestLength[f->p->index] = f->sp;
         ofstream out(string("outputLength/") + filename);
         out << fixed << setprecision(8);
@@ -81,7 +77,7 @@ void run(const char *filename) {
         if (!compareFiles(filename)) cout << "---------- NOT PASSED ----------\n";
     #endif
 
-    for (const vector<Funnel*> &lvl : tree) for (const Funnel *funnel : lvl) delete funnel;
+    for (const Funnel *funnel : list) delete funnel;
 }
 
 void time(const char *filename, size_t n = 100) {
@@ -112,9 +108,9 @@ void time(const char *filename, size_t n = 100) {
     chrono::nanoseconds duration(0);
     while (n --> 0) {
         const auto start = chrono::high_resolution_clock::now();
-        const vector<vector<Funnel*>> tree = FunnelTree(points[0], mesh);
+        const vector<Funnel*> list = FunnelTree(points[0], mesh);
         const auto end = chrono::high_resolution_clock::now();
-        for (const vector<Funnel*> &lvl : tree) for (const Funnel *funnel : lvl) delete funnel;
+        for (const Funnel *funnel : list) delete funnel;
         duration += end - start;
     }
 
