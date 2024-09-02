@@ -6,6 +6,7 @@
 #include <cmath>        // acos, sqrt, INFINITY
 #include <algorithm>    // find
 #include <fstream>      // ofstream
+#include <deque>
 
 constexpr const indexType MAX_INDEX = numeric_limits<indexType>::max();
 
@@ -72,12 +73,12 @@ vector<Funnel*> FunnelTree(const Point &s, const TriangleMesh& mesh) {
     const vector<indexType> &facesAt_s = dictVerticesAt_s->second;
     const indexType deg_s = facesAt_s.size();
 
-    vector<Funnel*> list;
+    vector<Funnel*> ans;
     typedef unordered_map<array<const Point*, 3>, const Funnel*, Hasher> FunnelDict;
     FunnelDict twoChildrenFunnels;
-    #pragma omp declare reduction(push_back : vector<Funnel*> : omp_out.insert(omp_out.end(), omp_in.begin(), omp_in.end()))
-    #pragma omp parallel reduction(push_back : list)
+    #pragma omp parallel
     {
+        deque<Funnel*> list;
         #pragma omp for
         for (indexType i = 0; i < deg_s; i++) {
             const Triangle pqv = mesh.triangles[facesAt_s[i]];
@@ -170,9 +171,12 @@ vector<Funnel*> FunnelTree(const Point &s, const TriangleMesh& mesh) {
                 oldChildPV->remove();
             }
         }
+
+        #pragma omp critical
+        ans.insert(ans.end(), list.begin(), list.end());
     }
 
-    return list;
+    return ans;
 }
 
 inline double rad2deg(const double rad) { return rad * (180 / M_PI); }
