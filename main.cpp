@@ -112,7 +112,7 @@ void time(const char *filename, size_t n = 100) {
     chrono::nanoseconds duration(0);
     while (n --> 0) {
         const auto start = chrono::high_resolution_clock::now();
-        const vector<vector<Funnel*>>tree = FunnelTree(points[0], mesh);
+        const vector<vector<Funnel*>> tree = FunnelTree(points[0], mesh);
         const auto end = chrono::high_resolution_clock::now();
         for (const vector<Funnel*> &lvl : tree) for (const Funnel *funnel : lvl) delete funnel;
         duration += end - start;
