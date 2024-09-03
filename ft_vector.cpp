@@ -1,6 +1,6 @@
 #define _USE_MATH_DEFINES   // M_PI
 #include "ft.h"
-#include <stdexcept>
+#include <stdexcept>    // runtime_error
 #include <string>
 #include <limits>       // numeric_limits
 #include <cmath>        // acos, sqrt, INFINITY
@@ -21,7 +21,7 @@ TriangleMesh::TriangleMesh(const vector<Point> &points, const vector<array<index
 
     vector<const Point*> pointsPointers;
     pointsPointers.reserve(v);
-    for (const Point &p : points) {  // add points
+    for (const Point &p : points) { // add points
         const pair<PointDict::iterator, bool> temp = dictVertices.try_emplace(p, vector<indexType>());
         if (!temp.second) throw runtime_error("point " + to_string(p.index) + " has duplicates");
         pointsPointers.push_back(&temp.first->first);
@@ -173,36 +173,4 @@ vector<Funnel*> FunnelTree(const Point &s, const TriangleMesh& mesh) {
     }
 
     return list;
-}
-
-inline double rad2deg(const double rad) { return rad * (180 / M_PI); }
-
-void PrintTreeLvlByLvl(const vector<vector<Funnel*>> &tree, const char *const filename) {
-    ofstream out(filename);
-    size_t count = 0;
-    for (const vector<Funnel*> &lvl : tree) {
-        out << "Level " << ++count << '\n';
-        for (const Funnel *const f : lvl) {
-            out << '\t' << (f->removed ? "Removed " : "Funnel ") << f->p->index << ' ' << f->q->index << ' ' << f->x->index
-            << ": sp = " << f->sp << ", pq = " << f->pq << ", <spq = " << rad2deg(f->spq) << ", <psq = " << rad2deg(f->psq) << ", <psw = " << rad2deg(f->psw)
-            << ", top_right_angle = " << rad2deg(f->topright_angle) << ", " << (f->childVQ != nullptr ? 2 : f->childPV == nullptr) << " children, sequence =";
-            for (const int i : f->sequence) out << ' ' << i;
-            out << '\n';
-        }
-    }
-}
-
-void LBLstep(const Funnel *const f, ofstream& out, size_t step) {
-    for (size_t i = 0; i < step; i++) out << ' ';
-    out << f->p->index << ' ' << f->q->index << ' ' << f->x->index << '\n';
-
-    if (f->childPV == nullptr) return;
-    LBLstep(f->childPV, out, ++step);
-
-    if (f->childVQ != nullptr) LBLstep(f->childVQ, out, step);
-}
-
-void PrintTreeParent2Child(const vector<vector<Funnel*>> &tree, const char *const filename) {
-    ofstream out(filename);
-    for (const Funnel* f : tree[0]) LBLstep(f, out, 0);
 }

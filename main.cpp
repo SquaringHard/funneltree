@@ -1,6 +1,5 @@
 // run all files: ./main
 // run some files: ./main cube1.geom sphere4.geom
-// to get helpful infomation for debugging, uncomment the define lines
 // to measure runtime, replace run function in main with time function
 
 #include "ft.h"
@@ -11,7 +10,7 @@
 #include <cmath>        // INFINITY
 #include <iomanip>      // setprecision
 #include <algorithm>    // equal
-// #define INFO_MODE
+#include <numeric>      // reduce
 #define COMPARE_LENGTH_MODE
 
 bool compareFiles(const char *filename) { // https://stackoverflow.com/a/37575457
@@ -60,11 +59,6 @@ void run(const char *filename) {
     const auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
     cout << "Funnel tree initialized with " << list.size() << " nodes in " << duration.count() << " milliseconds.\n";
 
-    #ifdef INFO_MODE
-        PrintTreeLvlByLvl(tree, (string("outputFunnelInfo/") + filename).c_str());
-        PrintTreeParent2Child(tree, (string("outputTree/") + filename).c_str());
-    #endif
-
     #ifdef COMPARE_LENGTH_MODE
         vector<double> shortestLength(v, INFINITY);
         shortestLength[i] = 0;
@@ -80,8 +74,8 @@ void run(const char *filename) {
     for (const Funnel *funnel : list) delete funnel;
 }
 
-void time(const char *filename, size_t n = 100) {
-    cout << "File \"" << filename << "\" ran " << n << " times in ";
+void time(const char *filename, const size_t n = 100) {
+    cout << "File \"" << filename << "\" ran " << n << " times. Avg: ";
     ifstream file(string("input/") + filename);
 
     size_t v, f, e;
@@ -105,16 +99,25 @@ void time(const char *filename, size_t n = 100) {
 
     TriangleMesh mesh(points, trianglesPointsIndexes);
 
-    chrono::nanoseconds duration(0);
-    while (n --> 0) {
+    vector<chrono::nanoseconds> duration;
+    for (size_t i = 0; i < n; i++) {
         const auto start = chrono::high_resolution_clock::now();
         const vector<Funnel*> list = FunnelTree(points[0], mesh);
         const auto end = chrono::high_resolution_clock::now();
         for (const Funnel *funnel : list) delete funnel;
-        duration += end - start;
+        duration.emplace_back(end - start);
     }
 
-    cout << chrono::duration_cast<chrono::milliseconds>(duration).count() << " milliseconds.\n";
+    const auto avg = reduce(duration.begin(), duration.end()) / n;
+    chrono::nanoseconds error(0);
+    
+    // rand error
+    for (const auto i : duration) error += i < avg ? avg - i : i - avg;
+    error /= n;
+
+    error++;    // sys error
+    cout << chrono::duration_cast<chrono::microseconds>(avg).count() << " +/- "
+         << chrono::duration_cast<chrono::microseconds>(error).count() << " microseconds.\n";
 }
 
 int main(int argc, const char *argv[]) {
