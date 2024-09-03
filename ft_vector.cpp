@@ -70,7 +70,6 @@ vector<Funnel*> FunnelTree(const Point &s, const TriangleMesh& mesh) {
     const PointDict::const_iterator dictVerticesAt_s = mesh.dictVertices.find(s);
     if (dictVerticesAt_s == mesh.dictVertices.end()) return {};
     const vector<indexType> &facesAt_s = dictVerticesAt_s->second;
-    const indexType deg_s = facesAt_s.size();
 
     vector<Funnel*> list;
     typedef unordered_map<array<const Point*, 3>, const Funnel*, Hasher> FunnelDict;
@@ -79,7 +78,7 @@ vector<Funnel*> FunnelTree(const Point &s, const TriangleMesh& mesh) {
     #pragma omp parallel reduction (push_back : list)
     {
         #pragma omp for
-        for (indexType i = 0; i < deg_s; i++) {
+        for (indexType i = 0; i < facesAt_s.size(); i++) {
             const Triangle pqv = mesh.triangles[facesAt_s[i]];
             const Point *p, *q;
             if (s == *pqv.a) {

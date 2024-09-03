@@ -54,8 +54,6 @@ struct Funnel {
 };
 
 vector<Funnel*> FunnelTree(const Point &s, const TriangleMesh& mesh);
-void PrintTreeLvlByLvl(const vector<vector<Funnel*>> &tree, const char *const filename);
-void PrintTreeParent2Child(const vector<vector<Funnel*>> &tree, const char *const filename);
 
 
 #endif
