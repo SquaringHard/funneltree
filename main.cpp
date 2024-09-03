@@ -6,6 +6,7 @@
 #include <iostream>     // cin, cout
 #include <string>
 #include <fstream>      // ifstream
+#include <limits>       // numeric_limits
 #include <chrono>
 #include <cmath>        // INFINITY
 #include <iomanip>      // setprecision
@@ -44,7 +45,8 @@ void run(const char *filename) {
     vector<array<indexType, 3>> trianglesPointsIndexes;
     trianglesPointsIndexes.reserve(f);
     for (size_t i = 0; i < f; i++) {
-        indexType a, b, c, three;
+        indexType a, b, c;
+        short three;
         file >> three >> a >> b >> c;
         trianglesPointsIndexes.push_back({a, b, c});
     }
@@ -92,27 +94,28 @@ void time(const char *filename, const size_t n = 100) {
     vector<array<indexType, 3>> trianglesPointsIndexes;
     trianglesPointsIndexes.reserve(f);
     for (size_t i = 0; i < f; i++) {
-        indexType a, b, c, three;
+        indexType a, b, c;
+        short three;
         file >> three >> a >> b >> c;
         trianglesPointsIndexes.push_back({a, b, c});
     }
 
     TriangleMesh mesh(points, trianglesPointsIndexes);
 
-    vector<chrono::nanoseconds> duration;
-    for (size_t i = 0; i < n; i++) {
+    vector<chrono::nanoseconds> durations(n);
+    for (chrono::nanoseconds &i : durations) {
         const auto start = chrono::high_resolution_clock::now();
         const vector<Funnel*> list = FunnelTree(points[0], mesh);
         const auto end = chrono::high_resolution_clock::now();
         for (const Funnel *funnel : list) delete funnel;
-        duration.emplace_back(end - start);
+        i = end - start;
     }
 
-    const auto avg = reduce(duration.begin(), duration.end()) / n;
+    const chrono::nanoseconds avg = reduce(durations.begin(), durations.end()) / n;
     chrono::nanoseconds error(0);
     
     // rand error
-    for (const auto i : duration) error += i < avg ? avg - i : i - avg;
+    for (const chrono::nanoseconds i : durations) error += i < avg ? avg - i : i - avg;
     error /= n;
 
     error++;    // sys error
