@@ -67,7 +67,7 @@ void run(const char *filename) {
         ofstream out(string("outputLength/") + filename);
         out << fixed << setprecision(8);
         for (const double i : shortestLength) out << i << '\n';
-        out.close();
+        out.flush();
         if (!compareFiles(filename)) cout << "---------- NOT PASSED ----------\n";
     #endif
 
