@@ -5,7 +5,6 @@
 #include <limits>       // numeric_limits
 #include <cmath>        // acos, sqrt, INFINITY
 #include <algorithm>    // find
-#include <fstream>      // ofstream
 
 constexpr const indexType MAX_INDEX = numeric_limits<indexType>::max();
 
@@ -133,7 +132,7 @@ vector<Funnel*> FunnelTree(const Point &s, const TriangleMesh& mesh) {
 
             const double sv = calPV(spv, sp, pv), psv = angle(sp, sv, pv), pvq = angle(pv, vq, pq), psw = min(funnel->psw, psv),
                             top_right_new = max(angle(x, v, q) - pvq * sign, 0.0);
-            Funnel *const childPV = new Funnel(p, v, x, sequence, sp, pv, spv, psv, psw, top_right_new);
+            Funnel *const childPV = new Funnel(p, v, x, sequence, sp, pv, spv, psv, psw, top_right_new);    // allocate memory to heap
             funnel->childPV = childPV;
             list.push_back(childPV);
 

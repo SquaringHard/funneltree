@@ -7,7 +7,7 @@ using namespace std;
 
 typedef int indexType;
 
-struct Point {
+struct Point {  // use pointers because they seems to be faster
     double x, y, z;
     indexType index;
     Point(const double x, const double y, const double z, const indexType index) : x(x), y(y), z(z), index(index) {}
