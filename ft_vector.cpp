@@ -103,13 +103,14 @@ vector<Funnel*> FunnelTree(const Point &s, const TriangleMesh& mesh) {
         for (size_t i = 0; i < list.size(); i++) {
             Funnel *const funnel = list[i];
             if (funnel->removed) continue;
+
+            DetermineV:
             const Point *const q = funnel->q, *const p = funnel->p, *v = funnel->x, *x;
             const double pq = funnel->pq, sp = funnel->sp;
             double spv = INFINITY, pv, vq;
             vector<indexType> &sequence = funnel->sequence;
             short int sign;
-            while (spv >= M_PI) { 
-                ////////////////////////////// DETERMINE V //////////////////////////////               
+            while (spv >= M_PI) {              
                 x = v;
                 const array<indexType, 2> eFaces = mesh.dictEdges.at(Edge(x, q));
                 const indexType nextFace = eFaces[0] == sequence.back() ? eFaces[1] : eFaces[0];
@@ -132,11 +133,22 @@ vector<Funnel*> FunnelTree(const Point &s, const TriangleMesh& mesh) {
 
             const double sv = calPV(spv, sp, pv), psv = angle(sp, sv, pv), pvq = angle(pv, vq, pq), psw = min(funnel->psw, psv),
                             top_right_new = max(angle(x, v, q) - pvq * sign, 0.0);
+
+            if (!(psv < funnel->psw)) {
+                funnel->q = v;
+                funnel->x = x;
+                funnel->pq = pv;
+                funnel->spq = spv;
+                funnel->psq = psv;
+                funnel->psw = psw;
+                funnel->topright_angle = top_right_new;
+                goto DetermineV;
+            }
+            
             Funnel *const childPV = new Funnel(p, v, x, sequence, sp, pv, spv, psv, psw, top_right_new);    // allocate memory to heap
             funnel->childPV = childPV;
             list.push_back(childPV);
 
-            if (!(psv < funnel->psw)) continue; // don't question it
             const double pvs = angle(pv, sv, sp), vsq = funnel->psq - psv, vsw = funnel->psw - psv;
             Funnel *const childVQ = new Funnel(v, q, v, sequence, sv, vq, pvq - pvs, vsq, vsw);
             funnel->childVQ = childVQ;
