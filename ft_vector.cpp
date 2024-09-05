@@ -104,48 +104,53 @@ vector<Funnel*> FunnelTree(const Point &s, const TriangleMesh& mesh) {
             Funnel *const funnel = list[i];
             if (funnel->removed) continue;
 
-            DetermineV:
-            const Point *const q = funnel->q, *const p = funnel->p, *v = funnel->x, *x;
-            const double pq = funnel->pq, sp = funnel->sp;
-            double spv = INFINITY, pv, vq;
+            const Point *const p = funnel->p, *q = funnel->q, *x = funnel->x, *v;
+            const double sp = funnel->sp;
+            double topright_angle = funnel->topright_angle, pq = funnel->pq, pv, vq, spv, psv, pvq, psw, sv;
             vector<indexType> &sequence = funnel->sequence;
-            short int sign;
-            while (spv >= M_PI) {              
-                x = v;
-                const array<indexType, 2> eFaces = mesh.dictEdges.at(Edge(x, q));
-                const indexType nextFace = eFaces[0] == sequence.back() ? eFaces[1] : eFaces[0];
-                if (find(sequence.begin(), sequence.end(), nextFace) != sequence.end()) break;
 
-                sequence.push_back(nextFace);
-                const Triangle temp2 = mesh.triangles[nextFace];
-                for (const Point *const vNew : {temp2.a, temp2.b, temp2.c}) if (!(*vNew == *x || *vNew == *q)) { v = vNew; break; }
-                
-                funnel->topright_angle += angle(x, q, v);
-                sign = 1;
-                if (funnel->topright_angle >= M_PI) { funnel->topright_angle = M_PI * 2 - funnel->topright_angle; sign = -1; }
+            while (true) {
+                spv = INFINITY;
+                short int sign;
+                while (true) {
+                    const array<indexType, 2> eFaces = mesh.dictEdges.at(Edge(x, q));
+                    const indexType nextFace = eFaces[0] == sequence.back() ? eFaces[1] : eFaces[0];
+                    if (find(sequence.begin(), sequence.end(), nextFace) != sequence.end()) break;
 
-                vq = distance(v, q);
-                pv = calPV(funnel->topright_angle, pq, vq);
-                spv = funnel->spq + angle(pv, pq, vq) * sign;
-            }
+                    sequence.push_back(nextFace);
+                    const Triangle temp2 = mesh.triangles[nextFace];
+                    for (const Point *const vNew : {temp2.a, temp2.b, temp2.c}) if (!(*vNew == *x || *vNew == *q)) { v = vNew; break; }
+                    
+                    topright_angle += angle(x, q, v);
+                    sign = 1;
+                    if (topright_angle >= M_PI) { topright_angle = M_PI * 2 - topright_angle; sign = -1; }
 
-            if (spv >= M_PI) continue;
+                    vq = distance(v, q);
+                    pv = calPV(topright_angle, pq, vq);
+                    spv = funnel->spq + angle(pv, pq, vq) * sign;
 
-            const double sv = calPV(spv, sp, pv), psv = angle(sp, sv, pv), pvq = angle(pv, vq, pq), psw = min(funnel->psw, psv),
-                            top_right_new = max(angle(x, v, q) - pvq * sign, 0.0);
+                    if (spv >= M_PI) x = v;
+                    else break;
+                }
 
-            if (!(psv < funnel->psw)) {
-                funnel->q = v;
-                funnel->x = x;
-                funnel->pq = pv;
+                if (spv >= M_PI) break;
+                sv = calPV(spv, sp, pv);
+                psv = angle(sp, sv, pv);
+                pvq = angle(pv, vq, pq);
+                psw = min(funnel->psw, psv);
+                topright_angle = max(angle(x, v, q) - pvq * sign, 0.0);
+
+                if (psv < funnel->psw) break;
+                q = v;
+                pq = pv;
                 funnel->spq = spv;
                 funnel->psq = psv;
                 funnel->psw = psw;
-                funnel->topright_angle = top_right_new;
-                goto DetermineV;
             }
+
+            if (spv >= M_PI) continue;
             
-            Funnel *const childPV = new Funnel(p, v, x, sequence, sp, pv, spv, psv, psw, top_right_new);    // allocate memory to heap
+            Funnel *const childPV = new Funnel(p, v, x, sequence, sp, pv, spv, psv, psw, topright_angle);    // allocate memory to heap
             funnel->childPV = childPV;
             list.push_back(childPV);
 

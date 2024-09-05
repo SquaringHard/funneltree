@@ -3,3 +3,4 @@
 !expectedLength/
 *.exe
 .vscode/
+*.bat
