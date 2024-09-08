@@ -1,6 +1,4 @@
 */*.geom
-!input/
-!expectedLength/
 *.exe
 .vscode/
 *.bat
