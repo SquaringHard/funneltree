@@ -53,7 +53,8 @@ struct Funnel {
     void remove();
 };
 
-vector<Funnel*> FunnelTree(const Point &s, const TriangleMesh& mesh);
+vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const Point &s);
+inline void deleteFunnelTree(const vector<Funnel*> &list) { for (Funnel *f : list) delete f; }
 
 
 #endif

@@ -3,112 +3,100 @@
 // to measure runtime, replace run function in main with time function
 
 #include "ft.h"
-#include <iostream>     // cin, cout
+#include <utility>      // pair
 #include <string>
-#include <fstream>      // ifstream
+#include <fstream>      // ifstream, ofstream
+#include <cmath>        // INFINITY, fabs
+#include <filesystem>
+#include <iomanip>      // fixed, setprecision
 #include <limits>       // numeric_limits
+#include <iostream>     // cin, cout
 #include <chrono>
-#include <cmath>        // INFINITY
-#include <iomanip>      // setprecision
 #include <algorithm>    // equal
 #include <numeric>      // reduce
-#define COMPARE_LENGTH_MODE
 
-bool compareFiles(const char *filename) { // https://stackoverflow.com/a/37575457
-    ifstream f1(string("expectedLength/") + filename, ifstream::binary|ifstream::ate);
-    ifstream f2(string("outputLength/") + filename, ifstream::binary|ifstream::ate);
+pair<TriangleMesh, Point> getMeshAndStartPoint(const char *filename, const size_t startIndex) {
+    ifstream file(string("input/") + filename);
+    size_t v, f, e;
+    file >> v >> f >> e;
 
-    if (f1.fail() || f2.fail()) return false;     // file problem
-    if (f1.tellg() != f2.tellg()) return false;   // size mismatch
+    vector<Point> points;
+    for (size_t i = 0; i < v; i++) {
+        double x, y, z;
+        file >> x >> y >> z;
+        points.emplace_back(x, y, z, i);
+    }
 
-    // seek back to beginning and use equal to compare contents
-    f1.seekg(0, ifstream::beg);
-    f2.seekg(0, ifstream::beg);
-    return equal(istreambuf_iterator<char>(f1.rdbuf()), istreambuf_iterator<char>(), istreambuf_iterator<char>(f2.rdbuf()));
+    vector<array<indexType, 3>> trianglesPointsIndexes;
+    for (size_t i = 0; i < f; i++) {
+        indexType a, b, c;
+        short three;
+        file >> three >> a >> b >> c;
+        trianglesPointsIndexes.push_back({a, b, c});
+    }
+
+    return {TriangleMesh(points, trianglesPointsIndexes), points.at(startIndex)};
 }
 
-void run(const char *filename) {
+bool compareLength(const char *filename, const vector<Funnel*> &list, const size_t startIndex, const size_t n = 0) {
+    const string realFilename = string(filename) + "_s=" + to_string(startIndex);
+    ifstream file(string("expected/") + realFilename + ".txt");
+    if (!file.is_open()) throw runtime_error(std::string("expected/") + realFilename + ".txt not found");
+
+    vector<double> shortestLength;
+    double i;
+    while (file >> i) {
+        shortestLength.push_back(i);
+    }
+
+    vector<double> lengths(shortestLength.size(), INFINITY);
+    lengths[startIndex] = 0;
+    for (const Funnel *const f : list) {
+        if (lengths[f->p->index] > f->sp) lengths[f->p->index] = f->sp;
+    }
+
+    const double epsilon = 1e-9;
+    const bool result = equal(shortestLength.begin(), shortestLength.end(), lengths.begin(),
+                              [epsilon](const double a, const double b) { return fabs(a - b) < epsilon; });
+    if (!result) {
+        filesystem::create_directory("output");
+        ofstream file(string("output/") + realFilename + " (" + to_string(n) + ").txt");
+        file << fixed << setprecision(numeric_limits<double>::max_digits10);
+        for (const double i : lengths) file << i << '\n';
+    }
+
+    return result;
+}
+
+void run(const char *filename, const size_t startIndex = 0) {
     cout << "File \"" << filename << "\": ";
-    ifstream file(string("input/") + filename);
+    const pair<TriangleMesh, Point> meshAndStartPoint = getMeshAndStartPoint(filename, startIndex);
 
-    size_t v, f, e;
-    file >> v >> f >> e;
-
-    vector<Point> points;
-    points.reserve(v);
-    for (size_t i = 0; i < v; i++) {
-        double x, y, z;
-        file >> x >> y >> z;
-        points.emplace_back(x, y, z, i);
-    }
-
-    vector<array<indexType, 3>> trianglesPointsIndexes;
-    trianglesPointsIndexes.reserve(f);
-    for (size_t i = 0; i < f; i++) {
-        indexType a, b, c;
-        short three;
-        file >> three >> a >> b >> c;
-        trianglesPointsIndexes.push_back({a, b, c});
-    }
-
-    TriangleMesh mesh(points, trianglesPointsIndexes);
-    // cout << "\nThere are " << mesh.dictVertices.size() << " vertices, " << mesh.triangles.size() << " faces and " << mesh.dictEdges.size() << " edges.\n";
-    
-    const size_t i = 0;
     const auto start = chrono::high_resolution_clock::now();
-    const vector<Funnel*> list = FunnelTree(points[i], mesh);
+    const vector<Funnel*> list = FunnelTree(meshAndStartPoint.first, meshAndStartPoint.second);
     const auto end = chrono::high_resolution_clock::now();
+
     const auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
-    cout << "Funnel tree initialized with " << list.size() << " nodes in " << duration.count() << " milliseconds.\n";
+    cout << "Funnel tree with root " << startIndex << " initialized with " << list.size() << " nodes in " << duration.count() << " milliseconds.\n";
+    if (!compareLength(filename, list, startIndex)) cout << "---------- NOT PASSED ----------\n";
 
-    #ifdef COMPARE_LENGTH_MODE
-        vector<double> shortestLength(v, INFINITY);
-        shortestLength[i] = 0;
-        for (const Funnel *const f : list)
-            if (shortestLength[f->p->index] > f->sp) shortestLength[f->p->index] = f->sp;
-        ofstream out(string("outputLength/") + filename);
-        out << fixed << setprecision(8);
-        for (const double i : shortestLength) out << i << '\n';
-        out.flush();
-        if (!compareFiles(filename)) cout << "---------- NOT PASSED ----------\n";
-    #endif
-
-    for (const Funnel *funnel : list) delete funnel;
+    deleteFunnelTree(list);
 }
 
-void time(const char *filename, const size_t n = 100) {
+void time(const char *filename, const size_t startIndex = 0, const size_t n = 100) {
     cout << "File \"" << filename << "\" ran " << n << " times. Avg: ";
-    ifstream file(string("input/") + filename);
+    const pair<TriangleMesh, Point> meshAndStartPoint = getMeshAndStartPoint(filename, startIndex);
 
-    size_t v, f, e;
-    file >> v >> f >> e;
-
-    vector<Point> points;
-    points.reserve(v);
-    for (size_t i = 0; i < v; i++) {
-        double x, y, z;
-        file >> x >> y >> z;
-        points.emplace_back(x, y, z, i);
-    }
-
-    vector<array<indexType, 3>> trianglesPointsIndexes;
-    trianglesPointsIndexes.reserve(f);
-    for (size_t i = 0; i < f; i++) {
-        indexType a, b, c;
-        short three;
-        file >> three >> a >> b >> c;
-        trianglesPointsIndexes.push_back({a, b, c});
-    }
-
-    TriangleMesh mesh(points, trianglesPointsIndexes);
-
-    vector<chrono::nanoseconds> durations(n);
-    for (chrono::nanoseconds &i : durations) {
+    vector<chrono::nanoseconds> durations;
+    vector<bool> passed;
+    for (size_t i = 0; i < n; i++) {
         const auto start = chrono::high_resolution_clock::now();
-        const vector<Funnel*> list = FunnelTree(points[0], mesh);
+        const vector<Funnel*> list = FunnelTree(meshAndStartPoint.first, meshAndStartPoint.second);
         const auto end = chrono::high_resolution_clock::now();
-        for (const Funnel *funnel : list) delete funnel;
-        i = end - start;
+
+        durations.emplace_back(end - start);
+        passed.push_back(compareLength(filename, list, startIndex));
+        deleteFunnelTree(list);
     }
 
     const chrono::nanoseconds avg = reduce(durations.begin(), durations.end()) / n;
@@ -120,7 +108,8 @@ void time(const char *filename, const size_t n = 100) {
 
     error++;    // sys error
     cout << chrono::duration_cast<chrono::microseconds>(avg).count() << " +/- "
-         << chrono::duration_cast<chrono::microseconds>(error).count() << " microseconds.\n";
+         << chrono::duration_cast<chrono::microseconds>(error).count() << " microseconds."
+         << count_if(passed.begin(), passed.end(), [](const bool i) { return i; }) << " passed.\n";
 }
 
 int main(int argc, const char *argv[]) {
@@ -130,7 +119,7 @@ int main(int argc, const char *argv[]) {
                **files;
     if (argc > 1) files = argv; else { files = allfiles; argc = sizeof(allfiles) / sizeof(*allfiles); }
     for (int i = 1; i < argc; i++) {
-        // run(files[i]);
-        time(files[i]);
+        run(files[i]);
+        // time(files[i]);
     }
 }

@@ -9,17 +9,13 @@
 constexpr const indexType MAX_INDEX = numeric_limits<indexType>::max();
 
 TriangleMesh::TriangleMesh(const vector<Point> &points, const vector<array<indexType, 3>> &trianglesPointsIndexes) {
-    const size_t v = points.size();
+    const size_t v = points.size(), f = trianglesPointsIndexes.size();
     if (v > MAX_INDEX) throw runtime_error("too many points");
-    dictVertices.reserve(v);
-
-    const size_t f = trianglesPointsIndexes.size();
     if (f > MAX_INDEX) throw runtime_error("too many faces");
-    triangles.reserve(f);
+    dictVertices.reserve(v);
     dictEdges.reserve(v + f - 2);   // Euler's characteristic
 
     vector<const Point*> pointsPointers;
-    pointsPointers.reserve(v);
     for (const Point &p : points) { // add points
         const pair<PointDict::iterator, bool> temp = dictVertices.try_emplace(p, vector<indexType>());
         if (!temp.second) throw runtime_error("point " + to_string(p.index) + " has duplicates");
@@ -65,7 +61,7 @@ void Funnel::remove() {
     if (childVQ != nullptr) childVQ->remove();
 }
 
-vector<Funnel*> FunnelTree(const Point &s, const TriangleMesh& mesh) {
+vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const Point &s) {
     const PointDict::const_iterator dictVerticesAt_s = mesh.dictVertices.find(s);
     if (dictVerticesAt_s == mesh.dictVertices.end()) return {};
     const vector<indexType> &facesAt_s = dictVerticesAt_s->second;

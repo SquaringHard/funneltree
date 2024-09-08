@@ -1,4 +1,5 @@
-*/*.geom
+**/*.txt
 *.exe
+!getExpectedLength.exe
 .vscode/
 *.bat
