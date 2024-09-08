@@ -95,7 +95,7 @@ void time(const char *filename, const size_t startIndex = 0, const size_t n = 10
         const auto end = chrono::high_resolution_clock::now();
 
         durations.emplace_back(end - start);
-        passed.push_back(compareLength(filename, list, startIndex));
+        passed.push_back(compareLength(filename, list, startIndex, i));
         deleteFunnelTree(list);
     }
 
@@ -108,8 +108,8 @@ void time(const char *filename, const size_t startIndex = 0, const size_t n = 10
 
     error++;    // sys error
     cout << chrono::duration_cast<chrono::microseconds>(avg).count() << " +/- "
-         << chrono::duration_cast<chrono::microseconds>(error).count() << " microseconds."
-         << count_if(passed.begin(), passed.end(), [](const bool i) { return i; }) << " passed.\n";
+         << chrono::duration_cast<chrono::microseconds>(error).count() << " microseconds ("
+         << count_if(passed.begin(), passed.end(), [](const bool i) { return i; }) << " passed)\n";
 }
 
 int main(int argc, const char *argv[]) {
@@ -119,7 +119,7 @@ int main(int argc, const char *argv[]) {
                **files;
     if (argc > 1) files = argv; else { files = allfiles; argc = sizeof(allfiles) / sizeof(*allfiles); }
     for (int i = 1; i < argc; i++) {
-        run(files[i]);
-        // time(files[i]);
+        // run(files[i]);
+        time(files[i]);
     }
 }
