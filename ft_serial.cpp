@@ -55,7 +55,7 @@ inline double angle(const Point *const a, const Point *const b, const Point *con
 inline double calPV(const double pqv, const double pq, const double qv) { return sqrt(pq * pq + qv * qv - pq * qv * cos(pqv) * 2); }
 
 void Funnel::remove() {
-    if (childPV == nullptr) { removed = true; return; }
+    if (!childPV) { removed = true; return; }
     childPV->remove();
     childVQ->remove();
 }
