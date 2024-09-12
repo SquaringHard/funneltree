@@ -45,7 +45,7 @@ struct Funnel {
     Funnel *childPV, *childVQ;
     vector<indexType> sequence;
     const Point *p, *q, *x;
-    double sp, pq, spq, psq, psw, topright_angle;
+    double sp, pq, spq, psq, psw, topright_angle, pvs;
     bool removed;
     Funnel(const Point *const p, const Point *const q, const Point *const x, const vector<indexType> &sequence, const double sp, const double pq,
            const double spq, const double psq, const double psw, const double topright_angle = 0)

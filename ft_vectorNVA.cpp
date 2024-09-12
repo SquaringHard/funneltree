@@ -64,7 +64,7 @@ void Funnel::remove() {
     removed = true;
     if (childPV == nullptr) return;
     childPV->remove();
-    if (childVQ != nullptr) childVQ->remove();
+    childVQ->remove();
 }
 
 vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const Point &s) {
@@ -161,13 +161,14 @@ vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const Point &s) {
 
                     if (spv >= M_PI) continue;
 
-                    Funnel *const childPV = new Funnel(p, v, x, sequence, sp, pv, spv, psv, psw, topright_angle);    // allocate memory to heap
-                    funnel->childPV = childPV;
-                    local_list.push_back(childPV);
-
                     const double pvs = angle(pv, sv, sp), vsq = funnel->psq - psv, vsw = funnel->psw - psv;
+                    funnel->pvs = pvs;
+
+                    Funnel *const childPV = new Funnel(p, v, x, sequence, sp, pv, spv, psv, psw, topright_angle);    // allocate memory to heap
                     Funnel *const childVQ = new Funnel(v, q, v, sequence, sv, vq, pvq - pvs, vsq, vsw);
+                    funnel->childPV = childPV;
                     funnel->childVQ = childVQ;
+                    local_list.push_back(childPV);
                     local_list.push_back(childVQ);
 
                     pair<FunnelDict::iterator, bool> temp;
@@ -179,7 +180,7 @@ vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const Point &s) {
 
                     const Funnel *&oldFunnel = temp.first->second;
                     Funnel *const oldChildPV = oldFunnel->childPV, *const oldChildVQ = oldFunnel->childVQ;
-                    const double sv2 = oldChildVQ->sp, pvs2 = asin(oldChildPV->sp * sin(oldChildPV->spq) / sv2);
+                    const double sv2 = oldChildVQ->sp, pvs2 = oldFunnel->pvs;
 
                     if (sv2 > sv) {
                         if (pvs > pvs2) oldChildVQ->remove();
