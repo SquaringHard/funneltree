@@ -83,7 +83,7 @@ void run(const char *filename, const size_t startIndex = 0) {
     deleteFunnelTree(list);
 }
 
-void time(const char *filename, const size_t startIndex = 0, const size_t n = 100) {
+void time(const char *filename, const size_t startIndex = 0, const size_t n = 1000) {
     cout << "File \"" << filename << "\" ran " << n << " times. Avg: ";
     const pair<TriangleMesh, Point> meshAndStartPoint = getMeshAndStartPoint(filename, startIndex);
 
