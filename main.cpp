@@ -3,7 +3,6 @@
 // to measure runtime, replace run function in main with time function
 
 #include "ft.h"
-#include <utility>      // pair
 #include <string>
 #include <fstream>      // ifstream, ofstream
 #include <cmath>        // INFINITY, fabs
@@ -15,7 +14,7 @@
 #include <algorithm>    // equal
 #include <numeric>      // reduce
 
-pair<TriangleMesh, Point> getMeshAndStartPoint(const char *filename, const size_t startIndex) {
+TriangleMesh getMesh(const char *filename, const size_t startIndex) {
     ifstream file(string("input/") + filename);
     size_t v, f, e;
     file >> v >> f >> e;
@@ -24,40 +23,39 @@ pair<TriangleMesh, Point> getMeshAndStartPoint(const char *filename, const size_
     for (size_t i = 0; i < v; i++) {
         double x, y, z;
         file >> x >> y >> z;
-        points.emplace_back(x, y, z, i);
+        points.emplace_back(x, y, z);
     }
 
-    vector<array<indexType, 3>> trianglesPointsIndexes;
+    vector<Triangle> trianglesPointsIndexes;
     for (size_t i = 0; i < f; i++) {
         indexType a, b, c;
         short three;
         file >> three >> a >> b >> c;
-        trianglesPointsIndexes.push_back({a, b, c});
+        trianglesPointsIndexes.emplace_back(a, b, c);
     }
 
-    return {TriangleMesh(points, trianglesPointsIndexes), points.at(startIndex)};
+    return TriangleMesh(points, trianglesPointsIndexes);
 }
 
-bool compareLength(const char *filename, const vector<Funnel*> &list, const size_t startIndex, const size_t n = 0) {
+bool compareLength(const char *filename, const vector<Funnel*> &list, const indexType startIndex, const size_t n = 0) {
     const string realFilename = string(filename) + "_s=" + to_string(startIndex);
     ifstream file(string("expected/") + realFilename + ".txt");
     if (!file.is_open()) throw runtime_error(std::string("expected/") + realFilename + ".txt not found");
 
-    vector<double> shortestLength;
+    vector<double> expectedLengths;
     double i;
     while (file >> i) {
-        shortestLength.push_back(i);
+        expectedLengths.push_back(i);
     }
 
-    vector<double> lengths(shortestLength.size(), INFINITY);
+    vector<double> lengths(expectedLengths.size(), INFINITY);
     lengths[startIndex] = 0;
     for (const Funnel *const f : list) {
-        if (lengths[f->p->index] > f->sp) lengths[f->p->index] = f->sp;
+        if (lengths[f->p] > f->sp) lengths[f->p] = f->sp;
     }
 
-    const double epsilon = 1e-9;
-    const bool result = equal(shortestLength.begin(), shortestLength.end(), lengths.begin(),
-                              [epsilon](const double a, const double b) { return fabs(a - b) < epsilon; });
+    const bool result = equal(expectedLengths.begin(), expectedLengths.end(), lengths.begin(),
+                              [](const double a, const double b) { return fabs(a - b) < 1e-9; });
     if (!result) {
         filesystem::create_directory("output");
         ofstream file(string("output/") + realFilename + " (" + to_string(n) + ").txt");
@@ -70,33 +68,33 @@ bool compareLength(const char *filename, const vector<Funnel*> &list, const size
 
 void run(const char *filename, const size_t startIndex = 0) {
     cout << "File \"" << filename << "\": ";
-    const pair<TriangleMesh, Point> meshAndStartPoint = getMeshAndStartPoint(filename, startIndex);
+    const TriangleMesh mesh = getMesh(filename, startIndex);
 
     const auto start = chrono::high_resolution_clock::now();
-    const vector<Funnel*> list = FunnelTree(meshAndStartPoint.first, meshAndStartPoint.second);
+    const vector<Funnel*> list = FunnelTree(mesh, startIndex);
     const auto end = chrono::high_resolution_clock::now();
 
     const auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
     cout << "Funnel tree with root " << startIndex << " initialized with " << list.size() << " nodes in " << duration.count() << " milliseconds.\n";
     if (!compareLength(filename, list, startIndex)) cout << "---------- NOT PASSED ----------\n";
 
-    deleteFunnelTree(list);
+    deleteFunnelTree(list, mesh, startIndex);
 }
 
-void time(const char *filename, const size_t startIndex = 0, const size_t n = 1000) {
+void time(const char *filename, const size_t startIndex = 0, const size_t n = 100) {
     cout << "File \"" << filename << "\" ran " << n << " times. Avg: ";
-    const pair<TriangleMesh, Point> meshAndStartPoint = getMeshAndStartPoint(filename, startIndex);
+    const TriangleMesh mesh = getMesh(filename, startIndex);
 
     vector<chrono::nanoseconds> durations;
-    vector<bool> passed;
+    size_t passed = 0;
     for (size_t i = 0; i < n; i++) {
         const auto start = chrono::high_resolution_clock::now();
-        const vector<Funnel*> list = FunnelTree(meshAndStartPoint.first, meshAndStartPoint.second);
+        const vector<Funnel*> list = FunnelTree(mesh, startIndex);
         const auto end = chrono::high_resolution_clock::now();
 
         durations.emplace_back(end - start);
-        passed.push_back(compareLength(filename, list, startIndex, i));
-        deleteFunnelTree(list);
+        passed += compareLength(filename, list, startIndex, i);
+        deleteFunnelTree(list, mesh, startIndex);
     }
 
     const chrono::nanoseconds avg = reduce(durations.begin(), durations.end()) / n;
@@ -108,8 +106,7 @@ void time(const char *filename, const size_t startIndex = 0, const size_t n = 10
 
     error++;    // sys error
     cout << chrono::duration_cast<chrono::microseconds>(avg).count() << " +/- "
-         << chrono::duration_cast<chrono::microseconds>(error).count() << " microseconds ("
-         << count_if(passed.begin(), passed.end(), [](const bool i) { return i; }) << " passed)\n";
+         << chrono::duration_cast<chrono::microseconds>(error).count() << " microseconds (" << passed << " passed)\n";
 }
 
 int main(int argc, const char *argv[]) {
