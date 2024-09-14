@@ -54,6 +54,8 @@ void Funnel::remove() {
     (children + 1)->remove();
 }
 
+#pragma omp declare reduction(merge: vector<Funnel*>: omp_out.insert(omp_out.end(), omp_in.begin(), omp_in.end()))
+typedef unordered_map<Triangle, const Funnel*, HashNComp, HashNComp> FunnelDict;
 vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType s) {
     const vector<indexType> &facesAt_s = mesh.dictVertices[s];
     vector<Funnel*> list;
@@ -80,12 +82,10 @@ vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType s) {
         list.push_back(new Funnel(p, q, p, newSequence, mesh.pistance(s, p), mesh.pistance(p, q), spq, psw, psw));
     }
 
-    typedef unordered_map<Triangle, const Funnel*, HashNComp, HashNComp> FunnelDict;
     FunnelDict twoChildrenFunnels;
     for (size_t curr = 0;;) {
         const size_t end = list.size();
         vector<Funnel*> next_lvl;
-        #pragma omp declare reduction(merge: vector<Funnel*>: omp_out.insert(omp_out.end(), omp_in.begin(), omp_in.end()))
         #pragma omp parallel for reduction(merge: next_lvl) schedule(dynamic)
         for (size_t i = curr; i < end; i++) {
             Funnel *const funnel = list[i];
