@@ -11,7 +11,7 @@ typedef int indexType;
 struct Point {
     double x, y, z;
     Point(const double x, const double y, const double z) : x(x), y(y), z(z) {}
-    bool operator==(const Point &p) const { return x == p.x && y == p.y && z == p.z; }
+    bool operator==(const Point &p) const { return x == p.x && y == p.y && z == p.z; }  // for find() in TriangleMesh constructor
 };
 
 struct Edge {
@@ -37,8 +37,8 @@ struct Funnel {
 };
 
 struct HashNComp {
-    size_t operator()(const Edge &e) const { return size_t(e.a) ^ size_t(e.b); }
-    size_t operator()(const Triangle &t) const { return ((size_t(t.a) ^ (size_t(t.b) << 1)) >> 1) ^ (size_t(t.c) << 1); }
+    size_t operator()(const Edge &e) const { return e.a ^ e.b; }
+    size_t operator()(const Triangle &t) const { return ((t.a ^ (t.b << 1)) >> 1) ^ (t.c << 1); }
     bool operator()(const Edge &a, const Edge &b) const { return a.a == b.a && a.b == b.b || a.a == b.b && a.b == b.a; }
     bool operator()(const Triangle &a, const Triangle &b) const { return a.a == b.a && a.b == b.b && a.c == b.c; }
 };
