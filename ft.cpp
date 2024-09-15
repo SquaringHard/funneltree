@@ -1,39 +1,37 @@
 #define _USE_MATH_DEFINES   // M_PI
 #include "ft.h"
 #include <stdexcept>    // runtime_error
-#include <iterator>     // distance
-#include <string>
-#include <limits>       // numeric_limits
-#include <cmath>        // acos, sqrt, INFINITY
 #include <algorithm>    // find, swap
-
-constexpr const indexType MAX_INDEX = numeric_limits<indexType>::max();
+#include <string>       // to_string
+#include <cmath>        // acos, sqrt, INFINITY
+#include <fstream>      // ifstream
 
 TriangleMesh::TriangleMesh(const vector<Point> &ps, const vector<Triangle> &ts) : triangles(ts), points(ps), dictVertices(ps.size()) {
     const size_t v = ps.size(), f = ts.size();
     if (v > MAX_INDEX) throw runtime_error("too many points");
     if (f > MAX_INDEX) throw runtime_error("too many faces");
-    dictEdges.reserve(v + f - 2);   // Euler's characteristic
 
-    for (auto i = points.begin(); i != points.end(); i++)
-        if (find(points.begin(), i, *i) != i) throw runtime_error("point " + to_string(distance(i, points.begin())) + " has duplicates");
+    for (auto i = points.begin(); i != points.end(); i++) if (find(points.begin(), i, *i) != i)
+        throw runtime_error("point " + to_string(i - points.begin()) + " has duplicates");
 
-    for (indexType i = 0; i < f; i++) {
-        for (const Edge &e : {Edge(ts[i].a, ts[i].b), Edge(ts[i].b, ts[i].c), Edge(ts[i].c, ts[i].a)}) {    // add edges and triangle indexes to dictEdges
+    dictEdges.reserve(v + f - 2);       // Euler's characteristic
+    for (indexType i = 0; i < f; i++) { // add edges and triangle indexes to dictEdges
+        for (const Edge &e : {Edge(ts[i].a, ts[i].b), Edge(ts[i].b, ts[i].c), Edge(ts[i].c, ts[i].a)}) {
             const pair<DictEdgeType::iterator, bool> temp = dictEdges.try_emplace(e, array<indexType, 2>{i, MAX_INDEX});
             if (temp.second) continue;
+
             array<indexType, 2> &eFaces = temp.first->second;
-            if (eFaces[1] != MAX_INDEX) throw runtime_error("faces " + to_string(eFaces[0]) + ' ' + to_string(eFaces[1]) + ' ' + to_string(i) + "occupying same edge");
+            if (eFaces[1] != MAX_INDEX) throw runtime_error("faces " + to_string(eFaces[0]) + ' ' + to_string(eFaces[1]) + ' ' + to_string(i) +
+                                                            "occupying same edge");
+
             eFaces[1] = i;
         }
 
-        for (const indexType j : {ts[i].a, ts[i].b, ts[i].c}) dictVertices[j].push_back(i);   // add triangle indexes to dictVertices
+        for (const indexType j : {ts[i].a, ts[i].b, ts[i].c}) dictVertices[j].push_back(i);
     }
 
-    for (const pair<Edge, array<indexType, 2>> &temp : dictEdges) if (temp.second[1] == MAX_INDEX) {
-            const Edge e = temp.first;
-            throw runtime_error("floating edge " + to_string(e.a) + '-' + to_string(e.b));
-    }
+    for (const pair<Edge, array<indexType, 2>> &temp : dictEdges) if (temp.second[1] == MAX_INDEX)
+        { const Edge e = temp.first; throw runtime_error("floating edge " + to_string(e.a) + '-' + to_string(e.b)); }
 
     for (indexType i = 0; i < v; i++) if (dictVertices[i].empty()) throw runtime_error("floating point " + to_string(i));
 }
@@ -185,4 +183,27 @@ void deleteFunnelTree(const vector<Funnel*> &list, const TriangleMesh& mesh, con
     const size_t n = mesh.dictVertices[startIndex].size();
     for (size_t i = 0; i < n; i++) delete list[i];
     for (size_t i = n; i < list.size(); i+= 2) delete[] list[i];
+}
+
+TriangleMesh getMesh(const char *filename, const indexType startIndex) {
+    ifstream file(string("input/") + filename);
+    size_t v, f, e;
+    file >> v >> f >> e;
+
+    vector<Point> points;
+    for (size_t i = 0; i < v; i++) {
+        double x, y, z;
+        file >> x >> y >> z;
+        points.emplace_back(x, y, z);
+    }
+
+    vector<Triangle> trianglesPointsIndexes;
+    for (size_t i = 0; i < f; i++) {
+        indexType a, b, c;
+        short three;
+        file >> three >> a >> b >> c;
+        trianglesPointsIndexes.emplace_back(a, b, c);
+    }
+
+    return TriangleMesh(points, trianglesPointsIndexes);
 }

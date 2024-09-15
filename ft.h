@@ -1,12 +1,12 @@
 #ifndef FT_H
 #define FT_H
 using namespace std;
-#include <functional>   // hash function
-#include <array>
 #include <vector>
-#include <utility>      // pair
+#include <unordered_map>
+#include <array>
 
 typedef int indexType;
+const size_t MAX_INDEX = 1e8;   // max number of vertices for HashNComp()(Triangle) to work properly
 
 struct Point {
     double x, y, z;
@@ -38,7 +38,7 @@ struct Funnel {
 
 struct HashNComp {
     size_t operator()(const Edge &e) const { return e.a ^ e.b; }
-    size_t operator()(const Triangle &t) const {    // expect no more than 1e8 points
+    size_t operator()(const Triangle &t) const {
         const size_t seed = 0x9e3779b * (1 + t.a) + t.b;
         return ((seed << 27) + 0x517CC1B7 * (t.c)) ^ (seed >> 37);
     }
@@ -59,6 +59,7 @@ struct TriangleMesh {
 
 vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType startIndex);
 void deleteFunnelTree(const vector<Funnel*> &list, const TriangleMesh& mesh, const indexType startIndex);
+TriangleMesh getMesh(const char *filename, const indexType startIndex);
 
 
 #endif
