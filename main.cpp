@@ -92,8 +92,8 @@ void time(const char *filename, const indexType startIndex = 0, const short n = 
     error /= n;
     error++;    // system error
 
-    cout << chrono::duration_cast<chrono::microseconds>(avg).count() << " +/- "
-         << chrono::duration_cast<chrono::microseconds>(error).count() << " microseconds";
+    cout << fixed << setprecision(2) << chrono::duration_cast<chrono::microseconds>(avg).count() / 1000.0 << " +/- "
+                                     << chrono::duration_cast<chrono::microseconds>(error).count() / 1000.0 << " ms";
     #ifdef LENGTH_COMPARE
         cout << " (" << passed << " passed)";
     #endif
