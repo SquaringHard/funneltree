@@ -46,11 +46,11 @@ void run(const char *filename, const indexType startIndex = 0) {
     const auto end = chrono::high_resolution_clock::now();
 
     const auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
-    cout << "Funnel tree with root " << startIndex << " initialized with " << list.size() << " nodes in " << duration.count() << " milliseconds.\n";
-
+    cout << "Funnel tree with root " << startIndex << " initialized with " << list.size() << " nodes in " << duration.count() << " milliseconds.";
     #ifdef LENGTH_COMPARE
-        if (!compareLength(filename, list, startIndex)) cout << "---------- NOT PASSED ----------\n";
+        cout << " (" << (compareLength(filename, list, startIndex) ? "" : "not ") << "passed)";
     #endif
+    cout << '\n';
 
     deleteFunnelTree(list, mesh, startIndex);
 
@@ -111,7 +111,7 @@ int main(int argc, const char *argv[]) {
                **files = argv;
     if (argc <= 1) { files = allfiles; argc = sizeof(allfiles) / sizeof(*allfiles); }
     for (int i = 1; i < argc; i++) {
-        // run(files[i]);
-        time(files[i]);
+        run(files[i]);
+        // time(files[i]);
     }
 }
