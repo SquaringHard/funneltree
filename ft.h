@@ -4,7 +4,7 @@ using namespace std;
 #include <vector>
 #include <unordered_map>
 #include <array>
-// #define THREAD_TIMING
+#define THREAD_TIMING
 
 
 typedef int indexType;
@@ -13,7 +13,6 @@ const size_t MAX_INDEX = 1e8;   // max number of vertices for HashNComp()(Triang
 #ifdef THREAD_TIMING
     #include <chrono>
     extern vector<chrono::nanoseconds> threadRuntime, threadIdleTime;
-    void resetThreadTiming();
 #endif
 
 struct Point {

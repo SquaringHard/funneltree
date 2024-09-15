@@ -11,7 +11,7 @@
 #include <iostream>     // cout
 #include <chrono>
 #include <numeric>      // reduce
-// #define LENGTH_COMPARE
+#define LENGTH_COMPARE
 
 bool compareLength(const char *filename, const vector<Funnel*> &list, const indexType startIndex, const size_t n = 0) {
     const string realFilename = string(filename) + "_s=" + to_string(startIndex);
@@ -46,7 +46,7 @@ void run(const char *filename, const indexType startIndex = 0) {
     const auto end = chrono::high_resolution_clock::now();
 
     const auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
-    cout << "Funnel tree with root " << startIndex << " initialized with " << list.size() << " nodes in " << duration.count() << " milliseconds.";
+    cout << "Funnel tree with root " << startIndex << " initialized with " << list.size() << " nodes in " << duration.count() << " ms.";
     #ifdef LENGTH_COMPARE
         cout << " (" << (compareLength(filename, list, startIndex) ? "" : "not ") << "passed)";
     #endif
@@ -55,12 +55,13 @@ void run(const char *filename, const indexType startIndex = 0) {
     deleteFunnelTree(list, mesh, startIndex);
 
     #ifdef THREAD_TIMING
-        cout << "Threads' runtime: ";
-        for (const chrono::nanoseconds i : threadRuntime) cout << chrono::duration_cast<chrono::microseconds>(i).count() << ' ';
-        cout << "(microseconds)\nThreads' idle time: ";
-        for (const chrono::nanoseconds i : threadIdleTime) cout << chrono::duration_cast<chrono::microseconds>(i).count() << ' ';
-        cout << "(microseconds)\n\n";
-        resetThreadTiming();
+        cout << "Thread id:";
+        for (int i = 0; i < threadRuntime.size(); i++) cout << '\t' << i;
+        cout << "\nRuntime (ms):" << fixed << setprecision(2);
+        for (const chrono::nanoseconds i : threadRuntime) cout << '\t' << chrono::duration_cast<chrono::microseconds>(i).count() / 1000.0;
+        cout << "\nIdle time (ms):";
+        for (const chrono::nanoseconds i : threadIdleTime) cout << '\t' << chrono::duration_cast<chrono::microseconds>(i).count() / 1000.0;
+        cout << "\n\n";
     #endif
 }
 

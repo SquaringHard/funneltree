@@ -54,11 +54,8 @@ void Funnel::remove() {
 
 #ifdef THREAD_TIMING
     #include <omp.h>
-    vector<chrono::nanoseconds> threadRuntime(omp_get_max_threads()), threadIdleTime(omp_get_max_threads());
-    void resetThreadTiming() {
-        fill(threadRuntime.begin(), threadRuntime.end(), chrono::nanoseconds(0));
-        fill(threadIdleTime.begin(), threadIdleTime.end(), chrono::nanoseconds(0));
-    }
+    const int MAX_THREADS = omp_get_max_threads();
+    vector<chrono::nanoseconds> threadRuntime(MAX_THREADS), threadIdleTime(MAX_THREADS);
 #endif
 
 #pragma omp declare reduction(merge: vector<Funnel*>: omp_out.insert(omp_out.end(), omp_in.begin(), omp_in.end()))
@@ -89,21 +86,23 @@ vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType s) {
         list.push_back(new Funnel(p, q, p, newSequence, mesh.pistance(s, p), mesh.pistance(p, q), spq, psw, psw));
     }
 
+    #ifdef THREAD_TIMING
+        fill(threadRuntime.begin(), threadRuntime.end(), chrono::nanoseconds(0));
+        chrono::nanoseconds sumMaxRuntime(0);
+    #endif
+
     FunnelDict twoChildrenFunnels;
     for (size_t curr = 0;;) {
         const size_t end = list.size();
         vector<Funnel*> next_lvl;
 
         #ifdef THREAD_TIMING
-            vector<chrono::nanoseconds> threadRuntimeInThisLoop(omp_get_max_threads());
+            vector<chrono::nanoseconds> threadRuntimeInThisLoop(MAX_THREADS);
+            const auto start = chrono::high_resolution_clock::now();
         #endif
 
         #pragma omp parallel 
         {
-            #ifdef THREAD_TIMING
-                const auto start = chrono::high_resolution_clock::now();
-            #endif
-
             #pragma omp for reduction(merge: next_lvl) schedule(dynamic)
             for (size_t i = curr; i < end; i++) {
                 Funnel *const funnel = list[i];
@@ -197,11 +196,8 @@ vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType s) {
         }
 
         #ifdef THREAD_TIMING
-            const auto maxRuntime = *max_element(threadRuntimeInThisLoop.begin(), threadRuntimeInThisLoop.end());
-            for (int i = 0; i < threadRuntimeInThisLoop.size(); i++) {
-                threadRuntime[i] += threadRuntimeInThisLoop[i];
-                threadIdleTime[i] += maxRuntime - threadRuntimeInThisLoop[i];
-            }
+            sumMaxRuntime += *max_element(threadRuntimeInThisLoop.begin(), threadRuntimeInThisLoop.end());
+            for (int i = 0; i < MAX_THREADS; i++) threadRuntime[i] += threadRuntimeInThisLoop[i];
         #endif
 
 
@@ -209,6 +205,10 @@ vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType s) {
         list.insert(list.end(), next_lvl.begin(), next_lvl.end());
         curr = end;
     }
+
+    #ifdef THREAD_TIMING
+        for (int i = 0; i < MAX_THREADS; i++) threadIdleTime[i] = sumMaxRuntime - threadRuntime[i];
+    #endif
 
     return list;
 }
