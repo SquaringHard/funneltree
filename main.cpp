@@ -57,7 +57,7 @@ void run(const char *filename, const indexType startIndex = 0) {
     #ifdef THREAD_TIMING
         cout << "Thread id:";
         for (int i = 0; i < threadRuntime.size(); i++) cout << '\t' << i;
-        cout << "\nRuntime (ms):" << fixed << setprecision(2);
+        cout << "\nRuntime (ms):" << fixed << setprecision(3);
         for (const chrono::nanoseconds i : threadRuntime) cout << '\t' << chrono::duration_cast<chrono::microseconds>(i).count() / 1000.0;
         cout << "\nIdle time (ms):";
         for (const chrono::nanoseconds i : threadIdleTime) cout << '\t' << chrono::duration_cast<chrono::microseconds>(i).count() / 1000.0;
@@ -92,7 +92,7 @@ void time(const char *filename, const indexType startIndex = 0, const short n = 
     error /= n;
     error++;    // system error
 
-    cout << fixed << setprecision(2) << chrono::duration_cast<chrono::microseconds>(avg).count() / 1000.0 << " +/- "
+    cout << fixed << setprecision(3) << chrono::duration_cast<chrono::microseconds>(avg).count() / 1000.0 << " +/- "
                                      << chrono::duration_cast<chrono::microseconds>(error).count() / 1000.0 << " ms";
     #ifdef LENGTH_COMPARE
         cout << " (" << passed << " passed)";
