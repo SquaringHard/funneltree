@@ -4,7 +4,7 @@ using namespace std;
 #include <vector>
 #include <unordered_map>
 #include <array>
-#define THREAD_TIMING
+// #define THREAD_TIMING
 
 
 typedef int indexType;
