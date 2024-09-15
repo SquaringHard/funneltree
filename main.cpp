@@ -97,15 +97,6 @@ void time(const char *filename, const indexType startIndex = 0, const short n = 
         cout << " (" << passed << " passed)";
     #endif
     cout << '\n';
-
-    #ifdef THREAD_TIMING
-        cout << "Avg threads' runtime: ";
-        for (const chrono::nanoseconds i : threadRuntime) cout << chrono::duration_cast<chrono::microseconds>(i).count() / n << ' ';
-        cout << "(microseconds)\nAvg threads' idle time: ";
-        for (const chrono::nanoseconds i : threadIdleTime) cout << chrono::duration_cast<chrono::microseconds>(i).count() / n << ' ';
-        cout << "(microseconds)\n\n";
-        resetThreadTiming();
-    #endif
 }
 
 int main(int argc, const char *argv[]) {
@@ -115,7 +106,7 @@ int main(int argc, const char *argv[]) {
                **files = argv;
     if (argc <= 1) { files = allfiles; argc = sizeof(allfiles) / sizeof(*allfiles); }
     for (int i = 1; i < argc; i++) {
-        // run(files[i]);
-        time(files[i]);
+        run(files[i]);
+        // time(files[i]);
     }
 }
