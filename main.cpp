@@ -45,8 +45,8 @@ void run(const char *filename, const indexType startIndex = 0) {
     const vector<Funnel*> list = FunnelTree(mesh, startIndex);
     const auto end = chrono::high_resolution_clock::now();
 
-    const auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
-    cout << "Funnel tree with root " << startIndex << " initialized with " << list.size() << " nodes in " << duration.count() << " ms.";
+    cout << "Funnel tree with root " << startIndex << " initialized with " << list.size() << " nodes in "
+         << fixed << setprecision(3) << chrono::duration_cast<chrono::microseconds>(end - start).count() / 1000.0 << " ms.";
     #ifdef LENGTH_COMPARE
         cout << " (" << (compareLength(filename, list, startIndex) ? "" : "not ") << "passed)";
     #endif
@@ -57,7 +57,7 @@ void run(const char *filename, const indexType startIndex = 0) {
     #ifdef THREAD_TIMING
         cout << "Thread id:";
         for (int i = 0; i < threadRuntime.size(); i++) cout << '\t' << i;
-        cout << "\nRuntime (ms):" << fixed << setprecision(3);
+        cout << "\nRuntime (ms):";
         for (const chrono::nanoseconds i : threadRuntime) cout << '\t' << chrono::duration_cast<chrono::microseconds>(i).count() / 1000.0;
         cout << "\nIdle time (ms):";
         for (const chrono::nanoseconds i : threadIdleTime) cout << '\t' << chrono::duration_cast<chrono::microseconds>(i).count() / 1000.0;
