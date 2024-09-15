@@ -7,7 +7,7 @@ The funnel tree algorithm is an algorithm for finding shortest paths on polyhedr
 - add datasets in input (refer to the already included .geom files for formats)
 - get lengths of shortest path: run getExpectedLength.exe
 - compare length: use `#define LENGTH_COMPARE` in main.cpp, run getExpectedLength.exe first
-- get each thread's runtime: use `#define THREAD_TIMING` in ft.h
+- get each thread's runtime: use `#define THREAD_TIMING` in ft.h, will increase program runtime
 - run dataset in 100 times: use `time()` instead of `run()` in `main` function in main.cpp
 
 # Contribution
