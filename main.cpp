@@ -39,7 +39,7 @@ bool compareLength(const char *filename, const vector<Funnel*> &list, const inde
 
 void run(const char *filename, const indexType startIndex = 0) {
     cout << "File \"" << filename << "\": ";
-    const TriangleMesh mesh = getMesh(filename, startIndex);
+    const TriangleMesh mesh = getMesh(filename);
 
     const auto start = chrono::high_resolution_clock::now();
     const vector<Funnel*> list = FunnelTree(mesh, startIndex);
@@ -67,7 +67,7 @@ void run(const char *filename, const indexType startIndex = 0) {
 
 void time(const char *filename, const indexType startIndex = 0, const short n = 100) {
     cout << "File \"" << filename << "\" ran " << n << " times. Avg: ";
-    const TriangleMesh mesh = getMesh(filename, startIndex);
+    const TriangleMesh mesh = getMesh(filename);
 
     vector<chrono::nanoseconds> durations;
     #ifdef LENGTH_COMPARE

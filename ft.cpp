@@ -219,7 +219,7 @@ void deleteFunnelTree(const vector<Funnel*> &list, const TriangleMesh& mesh, con
     for (size_t i = n; i < list.size(); i+= 2) delete[] list[i];
 }
 
-TriangleMesh getMesh(const char *filename, const indexType startIndex) {
+TriangleMesh getMesh(const char *filename) {
     ifstream file(string("input/") + filename);
     size_t v, f, e;
     file >> v >> f >> e;

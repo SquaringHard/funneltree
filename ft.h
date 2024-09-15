@@ -66,7 +66,7 @@ struct TriangleMesh {
 
 vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType startIndex);
 void deleteFunnelTree(const vector<Funnel*> &list, const TriangleMesh& mesh, const indexType startIndex);
-TriangleMesh getMesh(const char *filename, const indexType startIndex);
+TriangleMesh getMesh(const char *filename);
 
 
 #endif
