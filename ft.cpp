@@ -52,6 +52,11 @@ void Funnel::remove() {
     (children + 1)->remove();
 }
 
+#ifdef THREAD_TIMING
+    #include <omp.h>
+    vector<chrono::nanoseconds> threadRuntime(omp_get_max_threads());
+#endif
+
 #pragma omp declare reduction(merge: vector<Funnel*>: omp_out.insert(omp_out.end(), omp_in.begin(), omp_in.end()))
 typedef unordered_map<Triangle, const Funnel*, HashNComp, HashNComp> FunnelDict;
 vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType s) {
@@ -86,6 +91,11 @@ vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType s) {
         vector<Funnel*> next_lvl;
         #pragma omp parallel for reduction(merge: next_lvl) schedule(dynamic)
         for (size_t i = curr; i < end; i++) {
+            #ifdef THREAD_TIMING
+                #define continue { threadRuntime[omp_get_thread_num()] += chrono::high_resolution_clock::now() - start; continue; }
+                const auto start = chrono::high_resolution_clock::now();
+            #endif
+
             Funnel *const funnel = list[i];
             if (funnel->removed) continue;
 
@@ -169,6 +179,10 @@ vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType s) {
                 (child0 + 1)->removed = true;
                 oldChild0->remove();
             }
+
+            #ifdef THREAD_TIMING
+                #undef continue
+            #endif
         }
 
         if (next_lvl.empty()) break;

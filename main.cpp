@@ -1,7 +1,3 @@
-// run all files: ./main
-// run some files: ./main cube1.geom sphere4.geom
-// to measure runtime, replace run function in main with time function
-
 #include "ft.h"
 #include <string>
 #include <stdexcept>    // runtime_error
@@ -15,6 +11,7 @@
 #include <iostream>     // cout
 #include <chrono>
 #include <numeric>      // reduce
+#define LENGTH_COMPARE
 
 bool compareLength(const char *filename, const vector<Funnel*> &list, const indexType startIndex, const size_t n = 0) {
     const string realFilename = string(filename) + "_s=" + to_string(startIndex);
@@ -50,24 +47,38 @@ void run(const char *filename, const indexType startIndex = 0) {
 
     const auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
     cout << "Funnel tree with root " << startIndex << " initialized with " << list.size() << " nodes in " << duration.count() << " milliseconds.\n";
-    if (!compareLength(filename, list, startIndex)) cout << "---------- NOT PASSED ----------\n";
+
+    #ifdef LENGTH_COMPARE
+        if (!compareLength(filename, list, startIndex)) cout << "---------- NOT PASSED ----------\n";
+    #endif
 
     deleteFunnelTree(list, mesh, startIndex);
+
+    #ifdef THREAD_TIMING
+        cout << "Threads' runtime: ";
+        for (const chrono::nanoseconds i : threadRuntime) cout << chrono::duration_cast<chrono::microseconds>(i).count() << ' ';
+        cout << "(microseconds)\n";
+        fill(threadRuntime.begin(), threadRuntime.end(), chrono::nanoseconds(0));
+    #endif
 }
 
-void time(const char *filename, const indexType startIndex = 0, const short n = SHRT_MAX) {
+void time(const char *filename, const indexType startIndex = 0, const short n = 100) {
     cout << "File \"" << filename << "\" ran " << n << " times. Avg: ";
     const TriangleMesh mesh = getMesh(filename, startIndex);
 
     vector<chrono::nanoseconds> durations;
-    short passed = 0;
+    #ifdef LENGTH_COMPARE
+        short passed = 0;
+    #endif
     for (short i = 0; i < n; i++) {
         const auto start = chrono::high_resolution_clock::now();
         const vector<Funnel*> list = FunnelTree(mesh, startIndex);
         const auto end = chrono::high_resolution_clock::now();
 
         durations.emplace_back(end - start);
-        passed += compareLength(filename, list, startIndex, i);
+        #ifdef LENGTH_COMPARE
+            passed += compareLength(filename, list, startIndex, i);
+        #endif
         deleteFunnelTree(list, mesh, startIndex);
     }
 
@@ -79,7 +90,18 @@ void time(const char *filename, const indexType startIndex = 0, const short n = 
     error++;    // system error
 
     cout << chrono::duration_cast<chrono::microseconds>(avg).count() << " +/- "
-         << chrono::duration_cast<chrono::microseconds>(error).count() << " microseconds (" << passed << " passed)\n";
+         << chrono::duration_cast<chrono::microseconds>(error).count() << " microseconds";
+    #ifdef LENGTH_COMPARE
+        cout << " (" << passed << " passed)";
+    #endif
+    cout << '\n';
+
+    #ifdef THREAD_TIMING
+        cout << "Avg threads' runtime: ";
+        for (const chrono::nanoseconds i : threadRuntime) cout << chrono::duration_cast<chrono::microseconds>(i).count() / n << ' ';
+        cout << "(microseconds)\n";
+        fill(threadRuntime.begin(), threadRuntime.end(), chrono::nanoseconds(0));
+    #endif
 }
 
 int main(int argc, const char *argv[]) {
