@@ -54,7 +54,11 @@ void Funnel::remove() {
 
 #ifdef THREAD_TIMING
     #include <omp.h>
-    vector<chrono::nanoseconds> threadRuntime(omp_get_max_threads());
+    vector<chrono::nanoseconds> threadRuntime(omp_get_max_threads()), threadIdleTime(omp_get_max_threads());
+    void resetThreadTiming() {
+        fill(threadRuntime.begin(), threadRuntime.end(), chrono::nanoseconds(0));
+        fill(threadIdleTime.begin(), threadIdleTime.end(), chrono::nanoseconds(0));
+    }
 #endif
 
 #pragma omp declare reduction(merge: vector<Funnel*>: omp_out.insert(omp_out.end(), omp_in.begin(), omp_in.end()))
@@ -89,101 +93,117 @@ vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType s) {
     for (size_t curr = 0;;) {
         const size_t end = list.size();
         vector<Funnel*> next_lvl;
-        #pragma omp parallel for reduction(merge: next_lvl) schedule(dynamic)
-        for (size_t i = curr; i < end; i++) {
+
+        #ifdef THREAD_TIMING
+            vector<chrono::nanoseconds> threadRuntimeInThisLoop(omp_get_max_threads());
+        #endif
+
+        #pragma omp parallel 
+        {
             #ifdef THREAD_TIMING
-                #define continue { threadRuntime[omp_get_thread_num()] += chrono::high_resolution_clock::now() - start; continue; }
                 const auto start = chrono::high_resolution_clock::now();
             #endif
 
-            Funnel *const funnel = list[i];
-            if (funnel->removed) continue;
+            #pragma omp for reduction(merge: next_lvl) schedule(dynamic)
+            for (size_t i = curr; i < end; i++) {
+                Funnel *const funnel = list[i];
+                if (funnel->removed) continue;
 
-            const indexType p = funnel->p;
-            indexType q = funnel->q, x = funnel->x, v;
-            const double sp = funnel->sp;
-            double topright_angle = funnel->topright_angle, pq = funnel->pq, pv, vq, spv, psv, pvq, psw, sv;
-            vector<indexType> &sequence = funnel->sequence;
+                const indexType p = funnel->p;
+                indexType q = funnel->q, x = funnel->x, v;
+                const double sp = funnel->sp;
+                double topright_angle = funnel->topright_angle, pq = funnel->pq, pv, vq, spv, psv, pvq, psw, sv;
+                vector<indexType> &sequence = funnel->sequence;
 
-            while (true) {
-                spv = INFINITY;
-                short int sign;
                 while (true) {
-                    const array<indexType, 2> eFaces = mesh.dictEdges.at(Edge(x, q));
-                    const indexType nextFace = eFaces[0] == sequence.back() ? eFaces[1] : eFaces[0];
-                    if (find(sequence.begin(), sequence.end(), nextFace) != sequence.end()) break;
+                    spv = INFINITY;
+                    short int sign;
+                    while (true) {
+                        const array<indexType, 2> eFaces = mesh.dictEdges.at(Edge(x, q));
+                        const indexType nextFace = eFaces[0] == sequence.back() ? eFaces[1] : eFaces[0];
+                        if (find(sequence.begin(), sequence.end(), nextFace) != sequence.end()) break;
 
-                    sequence.push_back(nextFace);
-                    const Triangle temp2 = mesh.triangles[nextFace];
-                    for (const indexType vNew : {temp2.a, temp2.b, temp2.c}) if (vNew != x && vNew != q) { v = vNew; break; }
-                    
-                    topright_angle += mesh.pangle(x, q, v);
-                    sign = 1;
-                    if (topright_angle >= M_PI) { topright_angle = M_PI * 2 - topright_angle; sign = -1; }
+                        sequence.push_back(nextFace);
+                        const Triangle temp2 = mesh.triangles[nextFace];
+                        for (const indexType vNew : {temp2.a, temp2.b, temp2.c}) if (vNew != x && vNew != q) { v = vNew; break; }
+                        
+                        topright_angle += mesh.pangle(x, q, v);
+                        sign = 1;
+                        if (topright_angle >= M_PI) { topright_angle = M_PI * 2 - topright_angle; sign = -1; }
 
-                    vq = mesh.pistance(v, q);
-                    pv = calPV(topright_angle, pq, vq);
-                    spv = funnel->spq + angle(pv, pq, vq) * sign;
+                        vq = mesh.pistance(v, q);
+                        pv = calPV(topright_angle, pq, vq);
+                        spv = funnel->spq + angle(pv, pq, vq) * sign;
 
-                    if (spv >= M_PI) x = v;
-                    else break;
+                        if (spv >= M_PI) x = v;
+                        else break;
+                    }
+
+                    if (spv >= M_PI) break;
+                    sv = calPV(spv, sp, pv);
+                    psv = angle(sp, sv, pv);
+                    pvq = angle(pv, vq, pq);
+                    psw = min(funnel->psw, psv);
+                    topright_angle = max(mesh.pangle(x, v, q) - pvq * sign, 0.0);
+
+                    if (psv < funnel->psw) break;
+                    q = v;
+                    pq = pv;
+                    funnel->spq = spv;
+                    funnel->psq = psv;
+                    funnel->psw = psw;
                 }
 
-                if (spv >= M_PI) break;
-                sv = calPV(spv, sp, pv);
-                psv = angle(sp, sv, pv);
-                pvq = angle(pv, vq, pq);
-                psw = min(funnel->psw, psv);
-                topright_angle = max(mesh.pangle(x, v, q) - pvq * sign, 0.0);
+                if (spv >= M_PI) continue;
+                
+                const double pvs = angle(pv, sv, sp), vsq = funnel->psq - psv, vsw = funnel->psw - psv;
+                funnel->pvs = pvs;
+                funnel->children = new Funnel[2]{Funnel(p, v, x, sequence, sp, pv, spv, psv, psw, topright_angle),
+                                                Funnel(v, q, v, sequence, sv, vq, pvq - pvs, vsq, vsw)};
+                Funnel *const child0 = funnel->children;
+                next_lvl.push_back(child0);
+                next_lvl.push_back(child0 + 1);
 
-                if (psv < funnel->psw) break;
-                q = v;
-                pq = pv;
-                funnel->spq = spv;
-                funnel->psq = psv;
-                funnel->psw = psw;
-            }
+                pair<FunnelDict::iterator, bool> temp;
+                #pragma omp critical
+                temp = twoChildrenFunnels.try_emplace({p, v, q}, funnel);
+                if (temp.second) continue;
+                
+                /////////////////////////// CLIP OFF FUNNELS ////////////////////////////
 
-            if (spv >= M_PI) continue;
-            
-            const double pvs = angle(pv, sv, sp), vsq = funnel->psq - psv, vsw = funnel->psw - psv;
-            funnel->pvs = pvs;
-            funnel->children = new Funnel[2]{Funnel(p, v, x, sequence, sp, pv, spv, psv, psw, topright_angle),
-                                             Funnel(v, q, v, sequence, sv, vq, pvq - pvs, vsq, vsw)};
-            Funnel *const child0 = funnel->children;
-            next_lvl.push_back(child0);
-            next_lvl.push_back(child0 + 1);
+                const Funnel *&oldFunnel = temp.first->second;
+                Funnel *const oldChild0 = oldFunnel->children;
+                const double sv2 = (oldChild0 + 1)->sp, pvs2 = oldFunnel->pvs;
 
-            pair<FunnelDict::iterator, bool> temp;
-            #pragma omp critical
-            temp = twoChildrenFunnels.try_emplace({p, v, q}, funnel);
-            if (temp.second) continue;
-            
-            /////////////////////////// CLIP OFF FUNNELS ////////////////////////////
-
-            const Funnel *&oldFunnel = temp.first->second;
-            Funnel *const oldChild0 = oldFunnel->children;
-            const double sv2 = (oldChild0 + 1)->sp, pvs2 = oldFunnel->pvs;
-
-            if (sv2 > sv) {
-                if (pvs > pvs2) (oldChild0 + 1)->remove();
-                else oldChild0->remove();
-                oldFunnel = funnel; // switch marked funnel with current funnel, which has shorter sv length and therefore may help remove more funnels
-            } else if (sv > sv2) {
-                if (pvs > pvs2) child0->removed = true;
-                else (child0 + 1)->removed = true;
-            } else if (pvs > pvs2) {
-                child0->removed = true;
-                (oldChild0 + 1)->remove();
-            } else {
-                (child0 + 1)->removed = true;
-                oldChild0->remove();
+                if (sv2 > sv) {
+                    if (pvs > pvs2) (oldChild0 + 1)->remove();
+                    else oldChild0->remove();
+                    oldFunnel = funnel; // switch marked funnel with current funnel, which has shorter sv length and therefore may help remove more funnels
+                } else if (sv > sv2) {
+                    if (pvs > pvs2) child0->removed = true;
+                    else (child0 + 1)->removed = true;
+                } else if (pvs > pvs2) {
+                    child0->removed = true;
+                    (oldChild0 + 1)->remove();
+                } else {
+                    (child0 + 1)->removed = true;
+                    oldChild0->remove();
+                }
             }
 
             #ifdef THREAD_TIMING
-                #undef continue
+                threadRuntimeInThisLoop[omp_get_thread_num()] = chrono::high_resolution_clock::now() - start;
             #endif
         }
+
+        #ifdef THREAD_TIMING
+            const auto maxRuntime = *max_element(threadRuntimeInThisLoop.begin(), threadRuntimeInThisLoop.end());
+            for (int i = 0; i < threadRuntimeInThisLoop.size(); i++) {
+                threadRuntime[i] += threadRuntimeInThisLoop[i];
+                threadIdleTime[i] += maxRuntime - threadRuntimeInThisLoop[i];
+            }
+        #endif
+
 
         if (next_lvl.empty()) break;
         list.insert(list.end(), next_lvl.begin(), next_lvl.end());
