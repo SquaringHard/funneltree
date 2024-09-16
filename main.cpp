@@ -48,24 +48,14 @@ void run(const char *filename, const indexType startIndex = 0) {
     cout << "Funnel tree with root " << startIndex << " initialized with " << list.size() << " nodes in "
          << fixed << setprecision(3) << chrono::duration_cast<chrono::microseconds>(end - start).count() / 1000.0 << " ms.";
     #ifdef LENGTH_COMPARE
-        cout << " (" << (compareLength(filename, list, startIndex) ? "" : "not ") << "passed)";
+        cout << " (" << (compareLength(filename, list, startIndex) ? "" : "NOT ") << "passed)";
     #endif
     cout << '\n';
 
     deleteFunnelTree(list, mesh, startIndex);
-
-    #ifdef THREAD_TIMING
-        cout << "Thread id:";
-        for (int i = 0; i < threadRuntime.size(); i++) cout << '\t' << i;
-        cout << "\nRuntime (ms):";
-        for (const chrono::nanoseconds i : threadRuntime) cout << '\t' << chrono::duration_cast<chrono::microseconds>(i).count() / 1000.0;
-        cout << "\nIdle time (ms):";
-        for (const chrono::nanoseconds i : threadIdleTime) cout << '\t' << chrono::duration_cast<chrono::microseconds>(i).count() / 1000.0;
-        cout << "\n\n";
-    #endif
 }
 
-void time(const char *filename, const indexType startIndex = 0, const short n = 100) {
+void repeat(const char *filename, const indexType startIndex = 0, const short n = 100) {
     cout << "File \"" << filename << "\" ran " << n << " times. Avg: ";
     const TriangleMesh mesh = getMesh(filename);
 
@@ -107,7 +97,7 @@ int main(int argc, const char *argv[]) {
                **files = argv;
     if (argc <= 1) { files = allfiles; argc = sizeof(allfiles) / sizeof(*allfiles); }
     for (int i = 1; i < argc; i++) {
-        run(files[i]);
-        // time(files[i]);
+        // run(files[i]);
+        repeat(files[i]);
     }
 }

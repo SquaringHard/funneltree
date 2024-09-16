@@ -4,16 +4,10 @@ using namespace std;
 #include <vector>
 #include <unordered_map>
 #include <array>
-// #define THREAD_TIMING
 
 
 typedef int indexType;
 const size_t MAX_INDEX = 1e8;   // max number of vertices for HashNComp()(Triangle) to work properly
-
-#ifdef THREAD_TIMING
-    #include <chrono>
-    extern vector<chrono::nanoseconds> threadRuntime, threadIdleTime;
-#endif
 
 struct Point {
     double x, y, z;
