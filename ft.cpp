@@ -7,13 +7,14 @@
 #include <fstream>      // ifstream
 
 TriangleMesh::TriangleMesh(const vector<Point> &ps, const vector<Triangle> &ts) : triangles(ts), points(ps), dictVertices(ps.size()) {
-    const size_t v = ps.size(), f = ts.size();
-    if (v > MAX_INDEX) throw runtime_error("too many points");
-    if (f > MAX_INDEX) throw runtime_error("too many faces");
+    if (ps.size() > MAX_INDEX) throw out_of_range("too many points");
+    if (ts.size() > MAX_INDEX) throw out_of_range("too many faces");
 
     for (auto i = points.begin(); i != points.end(); i++) if (find(points.begin(), i, *i) != i)
-        throw runtime_error("point " + to_string(i - points.begin()) + " has duplicates");
+        throw invalid_argument("point " + to_string(i - points.begin()) + " has duplicates");
 
+    const indexType v = ps.size(), f = ts.size();
+    dictVertices.reserve(v);
     dictEdges.reserve(v + f - 2);       // Euler's characteristic
     for (indexType i = 0; i < f; i++) { // add edges and triangle indexes to dictEdges
         for (const Edge &e : {Edge(ts[i].a, ts[i].b), Edge(ts[i].b, ts[i].c), Edge(ts[i].c, ts[i].a)}) {
@@ -21,8 +22,8 @@ TriangleMesh::TriangleMesh(const vector<Point> &ps, const vector<Triangle> &ts) 
             if (temp.second) continue;
 
             array<indexType, 2> &eFaces = temp.first->second;
-            if (eFaces[1] != MAX_INDEX) throw runtime_error("faces " + to_string(eFaces[0]) + ' ' + to_string(eFaces[1]) + ' ' + to_string(i) +
-                                                            "occupying same edge");
+            if (eFaces[1] != MAX_INDEX) throw logic_error("faces " + to_string(eFaces[0]) + ' ' + to_string(eFaces[1]) + ' ' + to_string(i) +
+                                                          "occupying same edge");
 
             eFaces[1] = i;
         }
@@ -31,9 +32,9 @@ TriangleMesh::TriangleMesh(const vector<Point> &ps, const vector<Triangle> &ts) 
     }
 
     for (const pair<Edge, array<indexType, 2>> &temp : dictEdges) if (temp.second[1] == MAX_INDEX)
-        { const Edge e = temp.first; throw runtime_error("floating edge " + to_string(e.a) + '-' + to_string(e.b)); }
+        { const Edge e = temp.first; throw logic_error("floating edge " + to_string(e.a) + '-' + to_string(e.b)); }
 
-    for (indexType i = 0; i < v; i++) if (dictVertices[i].empty()) throw runtime_error("floating point " + to_string(i));
+    for (indexType i = 0; i < v; i++) if (dictVertices[i].empty()) throw logic_error("floating point " + to_string(i));
 }
 
 inline double angle(const double ab, const double bc, const double ca) { return acos((ab * ab + bc * bc - ca * ca) / (ab * bc * 2)); }
@@ -52,18 +53,14 @@ void Funnel::remove() {
     (children + 1)->remove();
 }
 
-#ifdef THREAD_TIMING
-    #include <omp.h>
-    const int MAX_THREADS = omp_get_max_threads();
-    vector<chrono::nanoseconds> threadRuntime(MAX_THREADS), threadIdleTime(MAX_THREADS);
-#endif
-
 #pragma omp declare reduction(merge: vector<Funnel*>: omp_out.insert(omp_out.end(), omp_in.begin(), omp_in.end()))
 typedef unordered_map<Triangle, const Funnel*, HashNComp, HashNComp> FunnelDict;
 vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType s) {
     const vector<indexType> &facesAt_s = mesh.dictVertices[s];
+    const indexType n = facesAt_s.size();
     vector<Funnel*> list;
-    for (indexType i = 0; i < facesAt_s.size(); i++) {  // if parallelizing this, read deleteFunnelTree() first
+    list.reserve(n);
+    for (indexType i = 0; i < n; i++) {  // if parallelizing this, read deleteFunnelTree() first
         const Triangle pqv = mesh.triangles[facesAt_s[i]];
         indexType p, q;
         if (pqv.a == s) {
@@ -86,90 +83,50 @@ vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType s) {
         list.push_back(new Funnel(p, q, p, newSequence, mesh.pistance(s, p), mesh.pistance(p, q), spq, psw, psw));
     }
 
-    #ifdef THREAD_TIMING
-        fill(threadRuntime.begin(), threadRuntime.end(), chrono::nanoseconds(0));
-        chrono::nanoseconds sumMaxRuntime(0);
-    #endif
-
     FunnelDict twoChildrenFunnels;
     for (size_t curr = 0;;) {
         const size_t end = list.size();
         vector<Funnel*> next_lvl;
+        #pragma omp parallel for reduction(merge: next_lvl) schedule(dynamic)
+        for (size_t i = curr; i < end; i++) {
+            Funnel *const funnel = list[i];
+            if (funnel->removed) continue;
 
-        #ifdef THREAD_TIMING
-            vector<chrono::nanoseconds> threadRuntimeInThisLoop(MAX_THREADS);
-            const auto start = chrono::high_resolution_clock::now();
-        #endif
+            indexType p = funnel->p, q = funnel->q, x = funnel->x, v;
+            double sp = funnel->sp, topright_angle = funnel->topright_angle, pq = funnel->pq, spq = funnel->spq, psq = funnel->psq, psw = funnel->psw;
+            vector<indexType> &sequence = funnel->sequence;
 
-        #pragma omp parallel 
-        {
-            #pragma omp for reduction(merge: next_lvl) schedule(dynamic)
-            for (size_t i = curr; i < end; i++) {
-                Funnel *const funnel = list[i];
-                if (funnel->removed) continue;
+            find_v_suchthat_funnelhas2children:
 
-                const indexType p = funnel->p;
-                indexType q = funnel->q, x = funnel->x, v;
-                const double sp = funnel->sp;
-                double topright_angle = funnel->topright_angle, pq = funnel->pq, pv, vq, spv, psv, pvq, psw, sv;
-                vector<indexType> &sequence = funnel->sequence;
+            const array<indexType, 2> eFaces = mesh.dictEdges.at(Edge(x, q));
+            const indexType nextFace = eFaces[0] == sequence.back() ? eFaces[1] : eFaces[0];
+            if (find(sequence.begin(), sequence.end(), nextFace) != sequence.end()) continue;   // move to next i
 
-                while (true) {
-                    spv = INFINITY;
-                    short int sign;
-                    while (true) {
-                        const array<indexType, 2> eFaces = mesh.dictEdges.at(Edge(x, q));
-                        const indexType nextFace = eFaces[0] == sequence.back() ? eFaces[1] : eFaces[0];
-                        if (find(sequence.begin(), sequence.end(), nextFace) != sequence.end()) break;
+            sequence.push_back(nextFace);
+            const Triangle temp2 = mesh.triangles[nextFace];
+            for (const indexType vNew : {temp2.a, temp2.b, temp2.c}) if (vNew != x && vNew != q) { v = vNew; break; }
+            
+            topright_angle += mesh.pangle(x, q, v);
+            short int sign = 1;
+            if (topright_angle >= M_PI) { topright_angle = M_PI * 2 - topright_angle; sign = -1; }
+            const double vq = mesh.pistance(v, q), pv = calPV(topright_angle, pq, vq), spv = spq + angle(pv, pq, vq) * sign;
 
-                        sequence.push_back(nextFace);
-                        const Triangle temp2 = mesh.triangles[nextFace];
-                        for (const indexType vNew : {temp2.a, temp2.b, temp2.c}) if (vNew != x && vNew != q) { v = vNew; break; }
-                        
-                        topright_angle += mesh.pangle(x, q, v);
-                        sign = 1;
-                        if (topright_angle >= M_PI) { topright_angle = M_PI * 2 - topright_angle; sign = -1; }
+            if (spv >= M_PI) { x = v; goto find_v_suchthat_funnelhas2children; }
 
-                        vq = mesh.pistance(v, q);
-                        pv = calPV(topright_angle, pq, vq);
-                        spv = funnel->spq + angle(pv, pq, vq) * sign;
+            const double sv = calPV(spv, sp, pv), psv = angle(sp, sv, pv), pvq = angle(pv, vq, pq), psw_new = min(psw, psv);
+            topright_angle = max(mesh.pangle(x, v, q) - pvq * sign, 0.0);
 
-                        if (spv >= M_PI) x = v;
-                        else break;
-                    }
+            if (!(psv < psw)) { // bet ur temping to write psv >= psw
+                make_only_Fpv:
+                    q = v; pq = pv; spq = spv; psq = psv; psw = psw_new;
+                    goto find_v_suchthat_funnelhas2children;
+            }
 
-                    if (spv >= M_PI) break;
-                    sv = calPV(spv, sp, pv);
-                    psv = angle(sp, sv, pv);
-                    pvq = angle(pv, vq, pq);
-                    psw = min(funnel->psw, psv);
-                    topright_angle = max(mesh.pangle(x, v, q) - pvq * sign, 0.0);
-
-                    if (psv < funnel->psw) break;
-                    q = v;
-                    pq = pv;
-                    funnel->spq = spv;
-                    funnel->psq = psv;
-                    funnel->psw = psw;
-                }
-
-                if (spv >= M_PI) continue;
-                
-                const double pvs = angle(pv, sv, sp), vsq = funnel->psq - psv, vsw = funnel->psw - psv;
-                funnel->pvs = pvs;
-                funnel->children = new Funnel[2]{Funnel(p, v, x, sequence, sp, pv, spv, psv, psw, topright_angle),
-                                                Funnel(v, q, v, sequence, sv, vq, pvq - pvs, vsq, vsw)};
-                Funnel *const child0 = funnel->children;
-                next_lvl.push_back(child0);
-                next_lvl.push_back(child0 + 1);
-
-                pair<FunnelDict::iterator, bool> temp;
-                #pragma omp critical
-                temp = twoChildrenFunnels.try_emplace({p, v, q}, funnel);
-                if (temp.second) continue;
-                
-                /////////////////////////// CLIP OFF FUNNELS ////////////////////////////
-
+            const double pvs = angle(pv, sv, sp), vsq = psq - psv, vsw = psw - psv, svq = pvq - pvs;
+            pair<FunnelDict::iterator, bool> temp;
+            #pragma omp critical
+            temp = twoChildrenFunnels.try_emplace({p, v, q}, funnel);
+            if (!temp.second) { // clip_off_funnel
                 const Funnel *&oldFunnel = temp.first->second;
                 Funnel *const oldChild0 = oldFunnel->children;
                 const double sv2 = (oldChild0 + 1)->sp, pvs2 = oldFunnel->pvs;
@@ -177,38 +134,30 @@ vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType s) {
                 if (sv2 > sv) {
                     if (pvs > pvs2) (oldChild0 + 1)->remove();
                     else oldChild0->remove();
-                    oldFunnel = funnel; // switch marked funnel with current funnel, which has shorter sv length and therefore may help remove more funnels
-                } else if (sv > sv2) {
-                    if (pvs > pvs2) child0->removed = true;
-                    else (child0 + 1)->removed = true;
-                } else if (pvs > pvs2) {
-                    child0->removed = true;
-                    (oldChild0 + 1)->remove();
+                    oldFunnel = funnel;
                 } else {
-                    (child0 + 1)->removed = true;
-                    oldChild0->remove();
+                    if (sv > sv2) { if (!(pvs > pvs2)) goto make_only_Fpv; }
+                    else if (pvs > pvs2) (oldChild0 + 1)->remove();
+                    else { oldChild0->remove(); goto make_only_Fpv; }
+
+                    // make only Fvq
+                    p = v; x = v; sp = sv; pq = vq; spq = svq; psq = vsq; psw = vsw; topright_angle = 0;
+                    goto find_v_suchthat_funnelhas2children;
                 }
             }
 
-            #ifdef THREAD_TIMING
-                threadRuntimeInThisLoop[omp_get_thread_num()] = chrono::high_resolution_clock::now() - start;
-            #endif
+            // make Fpv and Fvq:
+            funnel->pvs = pvs;
+            funnel->children = new Funnel[2]{Funnel(p, v, x, sequence, sp, pv, spv, psv, psw_new, topright_angle),
+                                                Funnel(v, q, v, sequence, sv, vq, svq, vsq, vsw)};
+            next_lvl.push_back(funnel->children);
+            next_lvl.push_back(funnel->children + 1);
         }
-
-        #ifdef THREAD_TIMING
-            sumMaxRuntime += *max_element(threadRuntimeInThisLoop.begin(), threadRuntimeInThisLoop.end());
-            for (int i = 0; i < MAX_THREADS; i++) threadRuntime[i] += threadRuntimeInThisLoop[i];
-        #endif
-
 
         if (next_lvl.empty()) break;
         list.insert(list.end(), next_lvl.begin(), next_lvl.end());
         curr = end;
     }
-
-    #ifdef THREAD_TIMING
-        for (int i = 0; i < MAX_THREADS; i++) threadIdleTime[i] = sumMaxRuntime - threadRuntime[i];
-    #endif
 
     return list;
 }
@@ -225,6 +174,7 @@ TriangleMesh getMesh(const char *filename) {
     file >> v >> f >> e;
 
     vector<Point> points;
+    points.reserve(v);
     for (size_t i = 0; i < v; i++) {
         double x, y, z;
         file >> x >> y >> z;
@@ -232,6 +182,7 @@ TriangleMesh getMesh(const char *filename) {
     }
 
     vector<Triangle> trianglesPointsIndexes;
+    trianglesPointsIndexes.reserve(f);
     for (size_t i = 0; i < f; i++) {
         indexType a, b, c;
         short three;
