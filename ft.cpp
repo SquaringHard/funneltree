@@ -10,7 +10,7 @@ TriangleMesh::TriangleMesh(const vector<Point> &ps, const vector<Triangle> &ts) 
     if (ps.size() > MAX_INDEX) throw out_of_range("too many points");
     if (ts.size() > MAX_INDEX) throw out_of_range("too many faces");
 
-    for (auto i = points.begin(); i != points.end(); i++) if (find(points.begin(), i, *i) != i)
+    for (vector<Point>::const_iterator i = points.begin(); i != points.end(); i++) if (find(points.begin(), i, *i) != i)
         throw invalid_argument("point " + to_string(i - points.begin()) + " has duplicates");
 
     const indexType v = ps.size(), f = ts.size();
@@ -123,18 +123,17 @@ vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType s) {
             }
 
             const double pvs = angle(pv, sv, sp), vsq = psq - psv, vsw = psw - psv, svq = pvq - pvs;
-            pair<FunnelDict::iterator, bool> temp;
-            #pragma omp critical
-            temp = twoChildrenFunnels.try_emplace({p, v, q}, funnel);
-            if (!temp.second) { // clip_off_funnel
-                const Funnel *&oldFunnel = temp.first->second;
+            FunnelDict::const_iterator temp;
+            #pragma omp critical (access_pvq)
+            temp = twoChildrenFunnels.find({p, v, q});
+            if (temp != twoChildrenFunnels.end()) { // clip_off_funnel
+                const Funnel *const oldFunnel = temp->second;
                 Funnel *const oldChild0 = oldFunnel->children;
                 const double sv2 = (oldChild0 + 1)->sp, pvs2 = oldFunnel->pvs;
 
                 if (sv2 > sv) {
                     if (pvs > pvs2) (oldChild0 + 1)->remove();
                     else oldChild0->remove();
-                    oldFunnel = funnel;
                 } else {
                     if (sv > sv2) { if (!(pvs > pvs2)) goto make_only_Fpv; }
                     else if (pvs > pvs2) (oldChild0 + 1)->remove();
@@ -149,7 +148,9 @@ vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType s) {
             // make Fpv and Fvq:
             funnel->pvs = pvs;
             funnel->children = new Funnel[2]{Funnel(p, v, x, sequence, sp, pv, spv, psv, psw_new, topright_angle),
-                                                Funnel(v, q, v, sequence, sv, vq, svq, vsq, vsw)};
+                                             Funnel(v, q, v, sequence, sv, vq, svq, vsq, vsw)};
+            #pragma omp critical (access_pvq)
+            twoChildrenFunnels[{p, v, q}] = funnel;
             next_lvl.push_back(funnel->children);
             next_lvl.push_back(funnel->children + 1);
         }
