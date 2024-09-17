@@ -11,19 +11,11 @@ const size_t MAX_INDEX = 1e8;   // max number of vertices for HashNComp()(Triang
 
 struct Point {
     double x, y, z;
-    Point(const double x, const double y, const double z) : x(x), y(y), z(z) {}
     bool operator==(const Point &p) const { return x == p.x && y == p.y && z == p.z; }  // for find() in TriangleMesh constructor
 };
 
-struct Edge {
-    indexType a, b;
-    Edge(const indexType a, const indexType b) : a(a), b(b) {}
-};
-
-struct Triangle {
-    indexType a, b, c;
-    Triangle(const indexType a, const indexType b, const indexType c) : a(a), b(b), c(c) {}
-};
+struct Edge { indexType a, b; };
+struct Triangle { indexType a, b, c; };
 
 struct HashNComp {
     size_t operator()(const Edge &e) const { return e.a ^ e.b; }

@@ -17,7 +17,7 @@ TriangleMesh::TriangleMesh(const vector<Point> &ps, const vector<Triangle> &ts) 
     dictVertices.reserve(v);
     dictEdges.reserve(v + f - 2);       // Euler's characteristic
     for (indexType i = 0; i < f; i++) { // add edges and triangle indexes to dictEdges
-        for (const Edge &e : {Edge(ts[i].a, ts[i].b), Edge(ts[i].b, ts[i].c), Edge(ts[i].c, ts[i].a)}) {
+        for (const Edge &e : {Edge{ts[i].a, ts[i].b}, Edge{ts[i].b, ts[i].c}, Edge{ts[i].c, ts[i].a}}) {
             const pair<DictEdgeType::iterator, bool> temp = dictEdges.try_emplace(e, array<indexType, 2>{i, MAX_INDEX});
             if (temp.second) continue;
 
@@ -92,7 +92,7 @@ vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType s) {
 
             find_v_suchthat_funnelhas2children:
 
-            const array<indexType, 2> eFaces = mesh.dictEdges.at(Edge(f.x, f.q));
+            const array<indexType, 2> eFaces = mesh.dictEdges.at({f.x, f.q});
             const indexType nextFace = eFaces[0] == f.sequence.back() ? eFaces[1] : eFaces[0];
             if (find(f.sequence.begin(), f.sequence.end(), nextFace) != f.sequence.end()) continue; // move to next i
 
@@ -157,12 +157,6 @@ vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType s) {
     return list;
 }
 
-void deleteFunnelTree(const vector<Funnel*> &list, const TriangleMesh& mesh, const indexType startIndex) {
-    const size_t n = mesh.dictVertices[startIndex].size();
-    for (size_t i = 0; i < n; i++) delete list[i];
-    for (size_t i = n; i < list.size(); i+= 2) delete[] list[i];
-}
-
 TriangleMesh getMesh(const char *filename) {
     ifstream file(string("input/") + filename);
     size_t v, f, e;
@@ -173,7 +167,7 @@ TriangleMesh getMesh(const char *filename) {
     for (size_t i = 0; i < v; i++) {
         double x, y, z;
         file >> x >> y >> z;
-        points.emplace_back(x, y, z);
+        points.push_back({x, y, z});
     }
 
     vector<Triangle> trianglesPointsIndexes;
@@ -182,7 +176,7 @@ TriangleMesh getMesh(const char *filename) {
         indexType a, b, c;
         short three;
         file >> three >> a >> b >> c;
-        trianglesPointsIndexes.emplace_back(a, b, c);
+        trianglesPointsIndexes.push_back({a, b, c});
     }
 
     return TriangleMesh(points, trianglesPointsIndexes);
