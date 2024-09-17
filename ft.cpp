@@ -58,24 +58,42 @@ vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType s) {
     const vector<indexType> &facesAt_s = mesh.dictVertices[s];
     const indexType n = facesAt_s.size();
     vector<Funnel> list(n * 3); // n + n * 2
-    for (indexType i = 0; i < n; i++) {
-        const Triangle pqv = mesh.triangles[facesAt_s[i]];
+
+    {
+        const Triangle pqv = mesh.triangles[facesAt_s[0]];
         indexType p, q;
         if (pqv.a == s) {
-            q = pqv.b;
-            p = pqv.c;
+            p = max(pqv.b, pqv.c);
+            q = min(pqv.b, pqv.c);
         } else if (pqv.b == s) {
-            q = pqv.c;
-            p = pqv.a;
+            p = max(pqv.c, pqv.a);
+            q = min(pqv.c, pqv.a);
         } else {
-            q = pqv.a;
-            p = pqv.b;
+            p = max(pqv.a, pqv.b);
+            q = min(pqv.a, pqv.b);
         }
 
         const double spq = mesh.pangle(s, p, q), psw = mesh.pangle(p, s, q);
 
         // insert all faces containing s instead of just 1 face to sequence so that the funnels never reach these faces again
         // because then the funnels don't have to reach the vertices on these faces
+        list[0] = Funnel(p, q, p, facesAt_s, mesh.pistance(s, p), mesh.pistance(p, q), spq, psw, psw, 0);
+        swap(list[0].sequence[0], list[0].sequence[n - 1]);
+    } for (indexType i = 1; i < n; i++) {
+        const Triangle pqv = mesh.triangles[facesAt_s[i]];
+        indexType p, q;
+        if (pqv.a == s) {
+            q = max(pqv.b, pqv.c);
+            p = min(pqv.b, pqv.c);
+        } else if (pqv.b == s) {
+            q = max(pqv.c, pqv.a);
+            p = min(pqv.c, pqv.a);
+        } else {
+            q = max(pqv.a, pqv.b);
+            p = min(pqv.a, pqv.b);
+        }
+
+        const double spq = mesh.pangle(s, p, q), psw = mesh.pangle(p, s, q);
         list[i] = Funnel(p, q, p, facesAt_s, mesh.pistance(s, p), mesh.pistance(p, q), spq, psw, psw, 0);
         swap(list[i].sequence[i], list[i].sequence[n - 1]);
     }
