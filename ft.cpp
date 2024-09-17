@@ -60,42 +60,25 @@ vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType s) {
     vector<Funnel> list(n * 3); // n + n * 2
 
     {
-        const Triangle pqv = mesh.triangles[facesAt_s[0]];
-        indexType p, q;
-        if (pqv.a == s) {
-            p = max(pqv.b, pqv.c);
-            q = min(pqv.b, pqv.c);
-        } else if (pqv.b == s) {
-            p = max(pqv.c, pqv.a);
-            q = min(pqv.c, pqv.a);
-        } else {
-            p = max(pqv.a, pqv.b);
-            q = min(pqv.a, pqv.b);
-        }
+        indexType psqIndex = facesAt_s[0];
+        Triangle psq = mesh.triangles[psqIndex];
+        indexType p = psq.a == s ? psq.b : psq.a, q = psq.a + psq.b + psq.c - s - p;
 
-        const double spq = mesh.pangle(s, p, q), psw = mesh.pangle(p, s, q);
-
-        // insert all faces containing s instead of just 1 face to sequence so that the funnels never reach these faces again
-        // because then the funnels don't have to reach the vertices on these faces
+        double spq = mesh.pangle(s, p, q), psw = mesh.pangle(p, s, q);
         list[0] = Funnel(p, q, p, facesAt_s, mesh.pistance(s, p), mesh.pistance(p, q), spq, psw, psw, 0);
         swap(list[0].sequence[0], list[0].sequence[n - 1]);
-    } for (indexType i = 1; i < n; i++) {
-        const Triangle pqv = mesh.triangles[facesAt_s[i]];
-        indexType p, q;
-        if (pqv.a == s) {
-            q = max(pqv.b, pqv.c);
-            p = min(pqv.b, pqv.c);
-        } else if (pqv.b == s) {
-            q = max(pqv.c, pqv.a);
-            p = min(pqv.c, pqv.a);
-        } else {
-            q = max(pqv.a, pqv.b);
-            p = min(pqv.a, pqv.b);
-        }
+        
+        for (indexType i = 1; i < n; i++) {
+            const array<indexType, 2> eFaces = mesh.dictEdges.at({s, q});
+            psqIndex = eFaces[0] == psqIndex ? eFaces[1] : eFaces[0];
+            psq = mesh.triangles[psqIndex];
+            p = q; q = psq.a + psq.b + psq.c - s - p;
 
-        const double spq = mesh.pangle(s, p, q), psw = mesh.pangle(p, s, q);
-        list[i] = Funnel(p, q, p, facesAt_s, mesh.pistance(s, p), mesh.pistance(p, q), spq, psw, psw, 0);
-        swap(list[i].sequence[i], list[i].sequence[n - 1]);
+            spq = mesh.pangle(s, p, q), psw = mesh.pangle(p, s, q);
+            list[i] = Funnel(p, q, p, facesAt_s, mesh.pistance(s, p), mesh.pistance(p, q), spq, psw, psw, 0);
+            vector<indexType> &sequence = list[i].sequence;
+            swap(*find(sequence.begin(), sequence.end(), psqIndex), sequence[n - 1]);
+        }
     }
 
     typedef unordered_map<Triangle, size_t, HashNComp, HashNComp> FunnelDict;
