@@ -25,18 +25,6 @@ struct Triangle {
     Triangle(const indexType a, const indexType b, const indexType c) : a(a), b(b), c(c) {}
 };
 
-struct Funnel {
-    Funnel *children;
-    vector<indexType> sequence;
-    double sp, pq, spq, psq, psw, topright_angle, pvs;
-    indexType p, q, x;
-    bool removed;
-    Funnel(const indexType p, const indexType q, const indexType x, const vector<indexType> &sequence, const double sp, const double pq,
-           const double spq, const double psq, const double psw, const double topright_angle = 0)
-    : children(nullptr), sequence(sequence), p(p), q(q), x(x), sp(sp), pq(pq), spq(spq), psq(psq), psw(psw), topright_angle(topright_angle), removed(false) {}
-    void remove();
-};
-
 struct HashNComp {
     size_t operator()(const Edge &e) const { return e.a ^ e.b; }
     size_t operator()(const Triangle &t) const {
@@ -58,8 +46,19 @@ struct TriangleMesh {
     double pangle(const indexType a, const indexType b, const indexType c) const;
 };
 
-vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType startIndex);
-void deleteFunnelTree(const vector<Funnel*> &list, const TriangleMesh& mesh, const indexType startIndex);
+struct Funnel {
+    size_t childrenIndex;
+    vector<indexType> sequence;
+    double sp, pq, spq, psq, psw, topright_angle, pvs;
+    indexType p, q, x;
+    bool removed;
+    Funnel() = default;
+    Funnel(const indexType p, const indexType q, const indexType x, const vector<indexType> &sequence, const double sp, const double pq,
+           const double spq, const double psq, const double psw, const double topright_angle)
+    : childrenIndex(0), sequence(sequence), p(p), q(q), x(x), sp(sp), pq(pq), spq(spq), psq(psq), psw(psw), topright_angle(topright_angle), removed(false) {}
+};
+
+vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType startIndex);
 TriangleMesh getMesh(const char *filename);
 
 

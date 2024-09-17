@@ -13,7 +13,7 @@
 #include <numeric>      // reduce
 #define LENGTH_COMPARE
 
-bool compareLength(const char *filename, const vector<Funnel*> &list, const indexType startIndex, const size_t n = 0) {
+bool compareLength(const char *filename, const vector<Funnel> &list, const indexType startIndex, const size_t n = 0) {
     const string realFilename = string(filename) + "_s=" + to_string(startIndex);
     ifstream file("expected/" + realFilename + ".txt");
     if (!file.is_open()) throw runtime_error("expected/" + realFilename + ".txt not found");
@@ -23,7 +23,7 @@ bool compareLength(const char *filename, const vector<Funnel*> &list, const inde
 
     vector<double> lengths(expectedLengths.size(), INFINITY);
     lengths[startIndex] = 0;
-    for (const Funnel *const f : list) if (lengths[f->p] > f->sp) lengths[f->p] = f->sp;
+    for (const Funnel &f : list) if (lengths[f.p] > f.sp) lengths[f.p] = f.sp;
 
     const bool result = equal(expectedLengths.begin(), expectedLengths.end(), lengths.begin(),
                               [](const double a, const double b) { return fabs(a - b) < 1e-9; });
@@ -42,7 +42,7 @@ void run(const char *filename, const indexType startIndex = 0) {
     const TriangleMesh mesh = getMesh(filename);
 
     const auto start = chrono::high_resolution_clock::now();
-    const vector<Funnel*> list = FunnelTree(mesh, startIndex);
+    const vector<Funnel> list = FunnelTree(mesh, startIndex);
     const auto end = chrono::high_resolution_clock::now();
 
     cout << "Funnel tree with root " << startIndex << " initialized with " << list.size() << " nodes in "
@@ -51,8 +51,6 @@ void run(const char *filename, const indexType startIndex = 0) {
         cout << " (" << (compareLength(filename, list, startIndex) ? "" : "NOT ") << "passed)";
     #endif
     cout << '\n';
-
-    deleteFunnelTree(list, mesh, startIndex);
 }
 
 void repeat(const char *filename, const indexType startIndex = 0, const short n = 100) {
@@ -65,14 +63,13 @@ void repeat(const char *filename, const indexType startIndex = 0, const short n 
     #endif
     for (short i = 0; i < n; i++) {
         const auto start = chrono::high_resolution_clock::now();
-        const vector<Funnel*> list = FunnelTree(mesh, startIndex);
+        const vector<Funnel> list = FunnelTree(mesh, startIndex);
         const auto end = chrono::high_resolution_clock::now();
 
         durations.emplace_back(end - start);
         #ifdef LENGTH_COMPARE
             passed += compareLength(filename, list, startIndex, i);
         #endif
-        deleteFunnelTree(list, mesh, startIndex);
     }
 
     const chrono::nanoseconds avg = reduce(durations.begin(), durations.end()) / n;

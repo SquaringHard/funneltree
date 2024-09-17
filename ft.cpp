@@ -47,20 +47,18 @@ double TriangleMesh::pistance(const indexType a, const indexType b) const {
 
 double TriangleMesh::pangle(const indexType a, const indexType b, const indexType c) const { return angle(pistance(a, b), pistance(b, c), pistance(c, a)); }
 
-void Funnel::remove() {
-    if (!children) { removed = true; return; }
-    children->remove();
-    (children + 1)->remove();
+void flag(vector<Funnel> &list, const size_t i) {
+    Funnel &f = list[i];
+    if (f.childrenIndex == 0) { f.removed = true; return; }
+    flag(list, f.childrenIndex);
+    flag(list, f.childrenIndex + 1);
 }
 
-#pragma omp declare reduction(merge: vector<Funnel*>: omp_out.insert(omp_out.end(), omp_in.begin(), omp_in.end()))
-typedef unordered_map<Triangle, const Funnel*, HashNComp, HashNComp> FunnelDict;
-vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType s) {
+vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType s) {
     const vector<indexType> &facesAt_s = mesh.dictVertices[s];
     const indexType n = facesAt_s.size();
-    vector<Funnel*> list;
-    list.reserve(n);
-    for (indexType i = 0; i < n; i++) {  // if parallelizing this, read deleteFunnelTree() first
+    vector<Funnel> list(n * 3); // n + n * 2
+    for (indexType i = 0; i < n; i++) {
         const Triangle pqv = mesh.triangles[facesAt_s[i]];
         indexType p, q;
         if (pqv.a == s) {
@@ -78,86 +76,82 @@ vector<Funnel*> FunnelTree(const TriangleMesh& mesh, const indexType s) {
 
         // insert all faces containing s instead of just 1 face to sequence so that the funnels never reach these faces again
         // because then the funnels don't have to reach the vertices on these faces
-        vector<indexType> newSequence = facesAt_s;
-        swap(newSequence[i], newSequence.back());
-        list.push_back(new Funnel(p, q, p, newSequence, mesh.pistance(s, p), mesh.pistance(p, q), spq, psw, psw));
+        list[i] = Funnel(p, q, p, facesAt_s, mesh.pistance(s, p), mesh.pistance(p, q), spq, psw, psw, 0);
+        swap(list[i].sequence[i], list[i].sequence[n - 1]);
     }
 
+    typedef unordered_map<Triangle, size_t, HashNComp, HashNComp> FunnelDict;
     FunnelDict twoChildrenFunnels;
-    for (size_t curr = 0;;) {
-        const size_t end = list.size();
-        vector<Funnel*> next_lvl;
-        #pragma omp parallel for reduction(merge: next_lvl) schedule(dynamic)
-        for (size_t i = curr; i < end; i++) {
-            Funnel *const funnel = list[i];
-            if (funnel->removed) continue;
-
-            indexType p = funnel->p, q = funnel->q, x = funnel->x, v;
-            double sp = funnel->sp, topright_angle = funnel->topright_angle, pq = funnel->pq, spq = funnel->spq, psq = funnel->psq, psw = funnel->psw;
-            vector<indexType> &sequence = funnel->sequence;
+    for (size_t start = 0, end = n;;) {
+        const size_t curr_end = end;
+        #pragma omp parallel for schedule(dynamic)
+        for (size_t i = start; i < curr_end; i++) {
+            Funnel &f = list[i];
+            if (f.removed) continue;
+            indexType p = f.p; double sp = f.sp;
 
             find_v_suchthat_funnelhas2children:
 
-            const array<indexType, 2> eFaces = mesh.dictEdges.at(Edge(x, q));
-            const indexType nextFace = eFaces[0] == sequence.back() ? eFaces[1] : eFaces[0];
-            if (find(sequence.begin(), sequence.end(), nextFace) != sequence.end()) continue;   // move to next i
+            const array<indexType, 2> eFaces = mesh.dictEdges.at(Edge(f.x, f.q));
+            const indexType nextFace = eFaces[0] == f.sequence.back() ? eFaces[1] : eFaces[0];
+            if (find(f.sequence.begin(), f.sequence.end(), nextFace) != f.sequence.end()) continue; // move to next i
 
-            sequence.push_back(nextFace);
+            f.sequence.push_back(nextFace);
+            indexType v;
             const Triangle temp2 = mesh.triangles[nextFace];
-            for (const indexType vNew : {temp2.a, temp2.b, temp2.c}) if (vNew != x && vNew != q) { v = vNew; break; }
+            for (const indexType vNew : {temp2.a, temp2.b, temp2.c}) if (vNew != f.x && vNew != f.q) { v = vNew; break; }
             
-            topright_angle += mesh.pangle(x, q, v);
+            f.topright_angle += mesh.pangle(f.x, f.q, v);
             short int sign = 1;
-            if (topright_angle >= M_PI) { topright_angle = M_PI * 2 - topright_angle; sign = -1; }
-            const double vq = mesh.pistance(v, q), pv = calPV(topright_angle, pq, vq), spv = spq + angle(pv, pq, vq) * sign;
+            if (f.topright_angle >= M_PI) { f.topright_angle = M_PI * 2 - f.topright_angle; sign = -1; }
+            const double vq = mesh.pistance(v, f.q), pv = calPV(f.topright_angle, f.pq, vq), spv = f.spq + angle(pv, f.pq, vq) * sign;
 
-            if (spv >= M_PI) { x = v; goto find_v_suchthat_funnelhas2children; }
+            if (spv >= M_PI) { f.x = v; goto find_v_suchthat_funnelhas2children; }
 
-            const double sv = calPV(spv, sp, pv), psv = angle(sp, sv, pv), pvq = angle(pv, vq, pq), psw_new = min(psw, psv);
-            topright_angle = max(mesh.pangle(x, v, q) - pvq * sign, 0.0);
+            const double sv = calPV(spv, sp, pv), psv = angle(sp, sv, pv), pvq = angle(pv, vq, f.pq), psw_new = min(f.psw, psv);
+            f.topright_angle = max(mesh.pangle(f.x, v, f.q) - pvq * sign, 0.0);
 
-            if (!(psv < psw)) { // bet ur temping to write psv >= psw
+            if (!(psv < f.psw)) { // bet ur temping to write psv >= psw
                 make_only_Fpv:
-                    q = v; pq = pv; spq = spv; psq = psv; psw = psw_new;
+                    f.q = v; f.pq = pv; f.spq = spv; f.psq = psv; f.psw = psw_new;
                     goto find_v_suchthat_funnelhas2children;
             }
 
-            const double pvs = angle(pv, sv, sp), vsq = psq - psv, vsw = psw - psv, svq = pvq - pvs;
+            const double pvs = angle(pv, sv, sp), vsq = f.psq - psv, vsw = f.psw - psv, svq = pvq - pvs;
             FunnelDict::const_iterator temp;
             #pragma omp critical (access_pvq)
-            temp = twoChildrenFunnels.find({p, v, q});
+            temp = twoChildrenFunnels.find({p, v, f.q});
             if (temp != twoChildrenFunnels.end()) { // clip_off_funnel
-                const Funnel *const oldFunnel = temp->second;
-                Funnel *const oldChild0 = oldFunnel->children;
-                const double sv2 = (oldChild0 + 1)->sp, pvs2 = oldFunnel->pvs;
+                const Funnel &oldFunnel = list[temp->second];
+                const size_t oldChildrenIndex = oldFunnel.childrenIndex;
+                const double sv2 = list[oldChildrenIndex + 1].sp;
+                const bool pvs_is_larger_than_pvs2 = pvs > oldFunnel.pvs;   // i feel like it
 
-                if (sv2 > sv) {
-                    if (pvs > pvs2) (oldChild0 + 1)->remove();
-                    else oldChild0->remove();
-                } else {
-                    if (sv > sv2) { if (!(pvs > pvs2)) goto make_only_Fpv; }
-                    else if (pvs > pvs2) (oldChild0 + 1)->remove();
-                    else { oldChild0->remove(); goto make_only_Fpv; }
+                if (sv2 > sv) flag(list, oldChildrenIndex + pvs_is_larger_than_pvs2);
+                else {
+                    if (sv > sv2) { if (!pvs_is_larger_than_pvs2) goto make_only_Fpv; }
+                    else if (pvs_is_larger_than_pvs2) flag(list, oldChildrenIndex + 1);
+                    else { flag(list, oldChildrenIndex); goto make_only_Fpv; }
 
                     // make only Fvq
-                    p = v; x = v; sp = sv; pq = vq; spq = svq; psq = vsq; psw = vsw; topright_angle = 0;
+                    p = v; f.x = v; sp = sv; f.pq = vq; f.spq = svq; f.psq = vsq; f.psw = vsw; f.topright_angle = 0;
                     goto find_v_suchthat_funnelhas2children;
                 }
             }
 
             // make Fpv and Fvq:
-            funnel->pvs = pvs;
-            funnel->children = new Funnel[2]{Funnel(p, v, x, sequence, sp, pv, spv, psv, psw_new, topright_angle),
-                                             Funnel(v, q, v, sequence, sv, vq, svq, vsq, vsw)};
+            f.pvs = pvs;
+            #pragma omp atomic capture
+            { f.childrenIndex = end; end += 2; }
+            list[f.childrenIndex] = Funnel(p, v, f.x, f.sequence, sp, pv, spv, psv, psw_new, f.topright_angle);
+            list[f.childrenIndex + 1] = Funnel(v, f.q, v, f.sequence, sv, vq, svq, vsq, vsw, 0);
             #pragma omp critical (access_pvq)
-            twoChildrenFunnels[{p, v, q}] = funnel;
-            next_lvl.push_back(funnel->children);
-            next_lvl.push_back(funnel->children + 1);
+            twoChildrenFunnels[{p, v, f.q}] = i;
         }
 
-        if (next_lvl.empty()) break;
-        list.insert(list.end(), next_lvl.begin(), next_lvl.end());
-        curr = end;
+        if (end == curr_end) { list.resize(end); break; }
+        start = curr_end;
+        list.resize((end - start) * 3 + start);
     }
 
     return list;
