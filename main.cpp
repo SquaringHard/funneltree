@@ -11,7 +11,7 @@
 #include <iostream>     // cout
 #include <chrono>
 #include <numeric>      // reduce
-#define LENGTH_COMPARE
+// #define LENGTH_COMPARE
 
 bool compareLength(const char *filename, const vector<Funnel> &list, const indexType startIndex, const size_t n = 0) {
     const string realFilename = string(filename) + "_s=" + to_string(startIndex);
@@ -94,7 +94,7 @@ int main(int argc, const char *argv[]) {
                **files = argv;
     if (argc <= 1) { files = allfiles; argc = sizeof(allfiles) / sizeof(*allfiles); }
     for (int i = 1; i < argc; i++) {
-        // run(files[i]);
-        repeat(files[i]);
+        run(files[i]);
+        // repeat(files[i]);
     }
 }
