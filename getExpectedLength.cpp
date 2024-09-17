@@ -37,10 +37,10 @@ int main() {
         for (size_t i = 0; i < v; i++) {
             double x, y, z;
             input >> x >> y >> z;
-            points.emplace_back(x, y, z, i);
+            points.push_back({x, y, z});
         }
 
-        vector<array<indexType, 3>> trianglesPointsIndexes;
+        vector<Triangle> trianglesPointsIndexes;
         for (size_t i = 0; i < f; i++) {
             indexType a, b, c;
             short three;
@@ -48,18 +48,16 @@ int main() {
             trianglesPointsIndexes.push_back({a, b, c});
         }
 
-        const vector<Funnel*> list = FunnelTree(TriangleMesh(points, trianglesPointsIndexes), points.at(startIndex));
+        const vector<Funnel> list = FunnelTree(TriangleMesh(points, trianglesPointsIndexes), startIndex);
 
         vector<double> shortestLength(v, INFINITY);
         shortestLength[startIndex] = 0;
-        for (const Funnel *const f : list) if (shortestLength[f->p->index] > f->sp) shortestLength[f->p->index] = f->sp;
+        for (const Funnel &f : list) if (shortestLength[f.p] > f.sp) shortestLength[f.p] = f.sp;
 
         filesystem::create_directory("expected");
         ofstream output(string("expected/") + realFilename);
         output << fixed << setprecision(numeric_limits<double>::max_digits10);
         for (const double i : shortestLength) output << i << '\n';
-
-        deleteFunnelTree(list);
     }
 }
 #endif
