@@ -18,7 +18,7 @@ TriangleMesh::TriangleMesh(const vector<Point> &ps, const vector<Triangle> &ts) 
     dictEdges.reserve(v + f - 2);       // Euler's characteristic
     for (indexType i = 0; i < f; i++) { // add edges and triangle indexes to dictEdges
         for (const Edge &e : {Edge{ts[i].a, ts[i].b}, Edge{ts[i].b, ts[i].c}, Edge{ts[i].c, ts[i].a}}) {
-            const pair<DictEdgeType::iterator, bool> temp = dictEdges.try_emplace(e, array<indexType, 2>{i, MAX_INDEX});
+            const auto temp = dictEdges.try_emplace(e, array<indexType, 2>{i, MAX_INDEX});
             if (temp.second) continue;
 
             array<indexType, 2> &eFaces = temp.first->second;

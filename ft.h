@@ -31,8 +31,7 @@ struct TriangleMesh {
     const vector<Triangle> triangles;
     const vector<Point> points;
     vector<vector<indexType>> dictVertices;
-    typedef unordered_map<Edge, array<indexType, 2>, HashNComp, HashNComp> DictEdgeType;    // an edge is on exactly 2 faces
-    DictEdgeType dictEdges;
+    unordered_map<Edge, array<indexType, 2>, HashNComp, HashNComp> dictEdges;
     TriangleMesh(const vector<Point> &points, const vector<Triangle> &triangles);
     double pistance(const indexType a, const indexType b) const;
     double pangle(const indexType a, const indexType b, const indexType c) const;
