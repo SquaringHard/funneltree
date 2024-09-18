@@ -10,4 +10,4 @@ The funnel tree algorithm is an algorithm for finding shortest paths on polyhedr
 - run dataset 100 times: replace `run` with `repeat` in `main` function in main.cpp
 
 # Contribution
-[My friendo](https://github.com/BanAnA9205)
+[My friend](https://github.com/BanAnA9205)
