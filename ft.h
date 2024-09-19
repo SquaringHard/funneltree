@@ -27,8 +27,8 @@ struct HashNComp {
 };
 
 struct TriangleMesh {
-    const vector<Triangle> triangles;
-    const vector<Point> points;
+    vector<Triangle> triangles;
+    vector<Point> points;
     vector<vector<indexType>> dictVertices;
     unordered_map<Edge, array<indexType, 2>, HashNComp, HashNComp> dictEdges;
     TriangleMesh(const vector<Point> &points, const vector<Triangle> &triangles);
