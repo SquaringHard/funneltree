@@ -10,7 +10,7 @@ TriangleMesh::TriangleMesh(const vector<Point> &ps, const vector<Triangle> &ts) 
     if (ps.size() > MAX_INDEX) throw out_of_range("too many points");
     if (ts.size() > MAX_INDEX) throw out_of_range("too many faces");
 
-    for (vector<Point>::const_iterator i = points.begin(); i != points.end(); i++) if (find(points.begin(), i, *i) != i)
+    for (vector<Point>::iterator i = points.begin(); i != points.end(); i++) if (find(points.begin(), i, *i) != i)
         throw invalid_argument("point " + to_string(i - points.begin()) + " has duplicates");
 
     const indexType v = ps.size(), f = ts.size();
