@@ -52,7 +52,8 @@ int main() {
 
         vector<double> shortestLength(v, INFINITY);
         shortestLength[startIndex] = 0;
-        for (const Funnel &f : list) if (shortestLength[f.p] > f.sp) shortestLength[f.p] = f.sp;
+        for (const Funnel &f : list) if (shortestLength[f.p] > f.sp2) shortestLength[f.p] = f.sp2;
+        for (double &i : shortestLength) i = sqrt(i);
 
         filesystem::create_directory("expected");
         ofstream output(string("expected/") + realFilename);

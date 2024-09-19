@@ -1,7 +1,7 @@
 #define _USE_MATH_DEFINES   // M_PI
 #include "ft.h"
 #include <stdexcept>    // runtime_error
-#include <algorithm>    // find, swap
+#include <algorithm>    // find, swap, min, max
 #include <string>       // to_string
 #include <cmath>        // acos, sqrt, INFINITY
 #include <fstream>      // ifstream
@@ -17,7 +17,7 @@ TriangleMesh::TriangleMesh(const vector<Point> &ps, const vector<Triangle> &ts) 
     dictVertices.reserve(v);
     dictEdges.reserve(v + f - 2);       // Euler's characteristic
     for (indexType i = 0; i < f; i++) { // add edges and triangle indexes to dictEdges
-        for (const Edge &e : {Edge{ts[i].a, ts[i].b}, Edge{ts[i].b, ts[i].c}, Edge{ts[i].c, ts[i].a}}) {
+        for (const Edge &e : {Edge{ts[i][0], ts[i][1]}, Edge{ts[i][1], ts[i][2]}, Edge{ts[i][2], ts[i][0]}}) {
             const auto temp = dictEdges.try_emplace(e, array<indexType, 2>{i, MAX_INDEX});
             if (temp.second) continue;
 
@@ -28,24 +28,28 @@ TriangleMesh::TriangleMesh(const vector<Point> &ps, const vector<Triangle> &ts) 
             eFaces[1] = i;
         }
 
-        for (const indexType j : {ts[i].a, ts[i].b, ts[i].c}) dictVertices[j].push_back(i);
+        for (const indexType j : ts[i]) dictVertices[j].push_back(i);
     }
 
     for (const pair<Edge, array<indexType, 2>> &temp : dictEdges) if (temp.second[1] == MAX_INDEX)
-        { const Edge e = temp.first; throw logic_error("floating edge " + to_string(e.a) + '-' + to_string(e.b)); }
+        { const Edge e = temp.first; throw logic_error("floating edge " + to_string(e[0]) + '-' + to_string(e[1])); }
 
     for (indexType i = 0; i < v; i++) if (dictVertices[i].empty()) throw logic_error("floating point " + to_string(i));
 }
 
-inline double angle(const double ab, const double bc, const double ca) { return acos((ab * ab + bc * bc - ca * ca) / (ab * bc * 2)); }
-inline double calPV(const double pqv, const double pq, const double qv) { return sqrt(pq * pq + qv * qv - pq * qv * cos(pqv) * 2); }
+inline double angle(const double ab2, const double bc2, const double ca2) { return acos((ab2 + bc2 - ca2) / sqrt(ab2 * bc2) / 2); }
+inline double calPV2(const double pqv, const double pq2, const double qv2) { return pq2 + qv2 - sqrt(pq2 * qv2) * cos(pqv) * 2; }
 
-double TriangleMesh::pistance(const indexType a, const indexType b) const {
+double TriangleMesh::pistance2(const indexType a, const indexType b) const {
     const double abx = points[a].x - points[b].x, aby = points[a].y - points[b].y, abz = points[a].z - points[b].z;
-    return sqrt(abx * abx + aby * aby + abz * abz);
+    return abx * abx + aby * aby + abz * abz;
 }
 
-double TriangleMesh::pangle(const indexType a, const indexType b, const indexType c) const { return angle(pistance(a, b), pistance(b, c), pistance(c, a)); }
+double TriangleMesh::pangle(const indexType a, const indexType b, const indexType c) const {
+    const double abx = points[a].x - points[b].x, aby = points[a].y - points[b].y, abz = points[a].z - points[b].z,
+                 cbx = points[c].x - points[b].x, cby = points[c].y - points[b].y, cbz = points[c].z - points[b].z;
+    return acos((abx * cbx + aby * cby + abz * cbz) / sqrt((abx * abx + aby * aby + abz * abz) * (cbx * cbx + cby * cby + cbz * cbz)));
+}
 
 void flag(vector<Funnel> &list, const size_t i) {
     Funnel &f = list[i];
@@ -62,26 +66,26 @@ vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType s) {
     {
         indexType psqIndex = facesAt_s[0];
         Triangle psq = mesh.triangles[psqIndex];
-        indexType p = psq.a == s ? psq.b : psq.a, q = psq.a + psq.b + psq.c - s - p;
+        indexType p = psq[0] == s ? psq[1] : psq[0], q = psq[2] == s ? psq[1] : psq[2];
 
         double spq = mesh.pangle(s, p, q), psw = mesh.pangle(p, s, q);
-        list[0] = Funnel(p, q, p, facesAt_s, mesh.pistance(s, p), mesh.pistance(p, q), spq, psw, psw, 0);
+        list[0] = Funnel(p, q, p, facesAt_s, mesh.pistance2(s, p), mesh.pistance2(p, q), spq, psw, psw, 0);
         swap(list[0].sequence[0], list[0].sequence[n - 1]);
         
         for (indexType i = 1; i < n; i++) {
             const array<indexType, 2> eFaces = mesh.dictEdges.at({s, q});
             psqIndex = eFaces[0] == psqIndex ? eFaces[1] : eFaces[0];
             psq = mesh.triangles[psqIndex];
-            p = q; q = psq.a + psq.b + psq.c - s - p;
+            p = q; q = psq[0] + psq[1] + psq[2] - s - p;
 
             spq = mesh.pangle(s, p, q), psw = mesh.pangle(p, s, q);
-            list[i] = Funnel(p, q, p, facesAt_s, mesh.pistance(s, p), mesh.pistance(p, q), spq, psw, psw, 0);
+            list[i] = Funnel(p, q, p, facesAt_s, mesh.pistance2(s, p), mesh.pistance2(p, q), spq, psw, psw, 0);
             vector<indexType> &sequence = list[i].sequence;
             swap(*find(sequence.begin(), sequence.end(), psqIndex), sequence[n - 1]);
         }
     }
 
-    typedef unordered_map<Triangle, size_t, HashNComp, HashNComp> FunnelDict;
+    typedef unordered_map<Triangle, size_t, HashNComp> FunnelDict;
     FunnelDict twoChildrenFunnels;
     for (size_t start = 0, end = n;;) {
         const size_t curr_end = end;
@@ -89,7 +93,7 @@ vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType s) {
         for (size_t i = start; i < curr_end; i++) {
             Funnel &f = list[i];
             if (f.removed) continue;
-            indexType p = f.p; double sp = f.sp;
+            indexType p = f.p; double sp2 = f.sp2;
 
             find_v_suchthat_funnelhas2children:
 
@@ -99,43 +103,42 @@ vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType s) {
 
             f.sequence.push_back(nextFace);
             indexType v;
-            const Triangle temp2 = mesh.triangles[nextFace];
-            for (const indexType vNew : {temp2.a, temp2.b, temp2.c}) if (vNew != f.x && vNew != f.q) { v = vNew; break; }
+            for (const indexType vNew : mesh.triangles[nextFace]) if (vNew != f.x && vNew != f.q) { v = vNew; break; }
             
             f.topright_angle += mesh.pangle(f.x, f.q, v);
             short int sign = 1;
             if (f.topright_angle >= M_PI) { f.topright_angle = M_PI * 2 - f.topright_angle; sign = -1; }
-            const double vq = mesh.pistance(v, f.q), pv = calPV(f.topright_angle, f.pq, vq), spv = f.spq + angle(pv, f.pq, vq) * sign;
+            const double vq2 = mesh.pistance2(v, f.q), pv2 = calPV2(f.topright_angle, f.pq2, vq2), spv = f.spq + angle(pv2, f.pq2, vq2) * sign;
 
             if (spv >= M_PI) { f.x = v; goto find_v_suchthat_funnelhas2children; }
 
-            const double sv = calPV(spv, sp, pv), psv = angle(sp, sv, pv), pvq = angle(pv, vq, f.pq), psw_new = min(f.psw, psv);
+            const double sv2 = calPV2(spv, sp2, pv2), psv = angle(sp2, sv2, pv2), pvq = angle(pv2, vq2, f.pq2), psw_new = min(f.psw, psv);
             f.topright_angle = max(mesh.pangle(f.x, v, f.q) - pvq * sign, 0.0);
 
             if (!(psv < f.psw)) { // bet ur temping to write psv >= psw
                 make_only_Fpv:
-                    f.q = v; f.pq = pv; f.spq = spv; f.psq = psv; f.psw = psw_new;
+                    f.q = v; f.pq2 = pv2; f.spq = spv; f.psq = psv; f.psw = psw_new;
                     goto find_v_suchthat_funnelhas2children;
             }
 
-            const double pvs = angle(pv, sv, sp), vsq = f.psq - psv, vsw = f.psw - psv, svq = pvq - pvs;
+            const double pvs = angle(pv2, sv2, sp2), vsq = f.psq - psv, vsw = f.psw - psv, svq = pvq - pvs;
             FunnelDict::const_iterator temp;
             #pragma omp critical (access_pvq)
             temp = twoChildrenFunnels.find({p, v, f.q});
             if (temp != twoChildrenFunnels.end()) { // clip_off_funnel
                 const Funnel &oldFunnel = list[temp->second];
                 const size_t oldChildrenIndex = oldFunnel.childrenIndex;
-                const double sv2 = list[oldChildrenIndex + 1].sp;
+                const double oldsv2 = list[oldChildrenIndex + 1].sp2;
                 const bool pvs_is_larger_than_pvs2 = pvs > oldFunnel.pvs;   // i feel like it
 
-                if (sv2 > sv) flag(list, oldChildrenIndex + pvs_is_larger_than_pvs2);
+                if (oldsv2 > sv2) flag(list, oldChildrenIndex + pvs_is_larger_than_pvs2);
                 else {
-                    if (sv > sv2) { if (!pvs_is_larger_than_pvs2) goto make_only_Fpv; }
+                    if (sv2 > oldsv2) { if (!pvs_is_larger_than_pvs2) goto make_only_Fpv; }
                     else if (pvs_is_larger_than_pvs2) flag(list, oldChildrenIndex + 1);
                     else { flag(list, oldChildrenIndex); goto make_only_Fpv; }
 
                     // make only Fvq
-                    p = v; f.x = v; sp = sv; f.pq = vq; f.spq = svq; f.psq = vsq; f.psw = vsw; f.topright_angle = 0;
+                    p = v; f.x = v; sp2 = sv2; f.pq2 = vq2; f.spq = svq; f.psq = vsq; f.psw = vsw; f.topright_angle = 0;
                     goto find_v_suchthat_funnelhas2children;
                 }
             }
@@ -144,8 +147,8 @@ vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType s) {
             f.pvs = pvs;
             #pragma omp atomic capture
             { f.childrenIndex = end; end += 2; }
-            list[f.childrenIndex] = Funnel(p, v, f.x, f.sequence, sp, pv, spv, psv, psw_new, f.topright_angle);
-            list[f.childrenIndex + 1] = Funnel(v, f.q, v, f.sequence, sv, vq, svq, vsq, vsw, 0);
+            list[f.childrenIndex] = Funnel(p, v, f.x, f.sequence, sp2, pv2, spv, psv, psw_new, f.topright_angle);
+            list[f.childrenIndex + 1] = Funnel(v, f.q, v, f.sequence, sv2, vq2, svq, vsq, vsw, 0);
             #pragma omp critical (access_pvq)
             twoChildrenFunnels[{p, v, f.q}] = i;
         }

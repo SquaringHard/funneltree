@@ -1,9 +1,9 @@
 #ifndef FT_H
 #define FT_H
 using namespace std;
+#include <array>
 #include <vector>
 #include <unordered_map>
-#include <array>
 
 
 typedef int indexType;
@@ -14,17 +14,16 @@ struct Point {
     bool operator==(const Point &p) const { return x == p.x && y == p.y && z == p.z; }  // for find() in TriangleMesh constructor
 };
 
-struct Edge { indexType a, b; };
-struct Triangle { indexType a, b, c; };
+typedef array<indexType, 2> Edge;
+typedef array<indexType, 3> Triangle;
 
 struct HashNComp {
-    size_t operator()(const Edge &e) const { return e.a ^ e.b; }
+    size_t operator()(const Edge &e) const { return e[0] ^ e[1]; }
+    bool operator()(const Edge &a, const Edge &b) const { return a[0] == b[0] && a[1] == b[1] || a[0] == b[1] && a[1] == b[0]; }
     size_t operator()(const Triangle &t) const {
-        const size_t seed = 0x9e3779b * (1 + t.a) + t.b;
-        return ((seed << 27) + 0x517CC1B7 * (t.c)) ^ (seed >> 37);
+        const size_t seed = 0x9e3779b * (1 + t[0]) + t[1];
+        return ((seed << 27) + 0x517CC1B7 * (t[2])) ^ (seed >> 37);
     }
-    bool operator()(const Edge &a, const Edge &b) const { return a.a == b.a && a.b == b.b || a.a == b.b && a.b == b.a; }
-    bool operator()(const Triangle &a, const Triangle &b) const { return a.a == b.a && a.b == b.b && a.c == b.c; }
 };
 
 struct TriangleMesh {
@@ -33,20 +32,20 @@ struct TriangleMesh {
     vector<vector<indexType>> dictVertices;
     unordered_map<Edge, array<indexType, 2>, HashNComp, HashNComp> dictEdges;
     TriangleMesh(const vector<Point> &points, const vector<Triangle> &triangles);
-    double pistance(const indexType a, const indexType b) const;
+    double pistance2(const indexType a, const indexType b) const;
     double pangle(const indexType a, const indexType b, const indexType c) const;
 };
 
 struct Funnel {
     size_t childrenIndex;
     vector<indexType> sequence;
-    double sp, pq, spq, psq, psw, topright_angle, pvs;
+    double sp2, pq2, spq, psq, psw, topright_angle, pvs;
     indexType p, q, x;
     bool removed;
     Funnel() = default;
-    Funnel(const indexType p, const indexType q, const indexType x, const vector<indexType> &sequence, const double sp, const double pq,
+    Funnel(const indexType p, const indexType q, const indexType x, const vector<indexType> &sequence, const double sp2, const double pq2,
            const double spq, const double psq, const double psw, const double topright_angle)
-    : childrenIndex(0), sequence(sequence), p(p), q(q), x(x), sp(sp), pq(pq), spq(spq), psq(psq), psw(psw), topright_angle(topright_angle), removed(false) {}
+    : childrenIndex(0), sequence(sequence), p(p), q(q), x(x), sp2(sp2), pq2(pq2), spq(spq), psq(psq), psw(psw), topright_angle(topright_angle), removed(false) {}
 };
 
 vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType startIndex);
