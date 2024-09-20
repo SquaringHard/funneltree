@@ -91,8 +91,9 @@ void repeat(const char *filename, const indexType startIndex = 0, const short n 
 int main(int argc, const char *argv[]) {
     const char *allfiles[] = {"main", "cube1.geom", "cube2.geom", "cube3.geom", "cube4.geom",
                               "sphere1.geom", "sphere2.geom", "sphere3.geom", "sphere4.geom",
-                              "spiral1.geom", "spiral2.geom", "J17.geom", "out0.geom", "out9.geom",
-                              "box1.geom", "pyramid1.geom", "pyramid2.geom", "pyramid3.geom"},
+                              "spiral1.geom", "spiral2.geom", "J17.geom", "box1.geom",
+                              "out0.geom", "out1.geom", "out9.geom", "out135.geom",
+                              "pyramid1.geom", "pyramid2.geom", "pyramid3.geom"},
                **files = argv;
     if (argc <= 1) { files = allfiles; argc = sizeof(allfiles) / sizeof(*allfiles); }
     for (int i = 1; i < argc; i++) {
