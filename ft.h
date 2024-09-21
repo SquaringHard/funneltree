@@ -7,7 +7,7 @@ using namespace std;
 
 
 typedef int indexType;
-const size_t MAX_INDEX = 1e8;
+const size_t MAX_INDEX = 1e8;   // max number of vertices for HashNComp()(Triangle) to work properly
 
 struct Point {
     double x, y, z;
