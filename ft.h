@@ -7,7 +7,7 @@ using namespace std;
 
 
 typedef int indexType;
-const size_t MAX_INDEX = 1e8;   // max number of vertices for HashNComp()(Triangle) to work properly
+const size_t MAX_INDEX = 1e8;
 
 struct Point {
     double x, y, z;
@@ -21,8 +21,9 @@ struct HashNComp {
     size_t operator()(const Edge &e) const { return e[0] ^ e[1]; }
     bool operator()(const Edge &a, const Edge &b) const { return a[0] == b[0] && a[1] == b[1] || a[0] == b[1] && a[1] == b[0]; }
     size_t operator()(const Triangle &t) const {
-        const size_t seed = 0x9e3779b * (1 + t[0]) + t[1];
-        return ((seed << 27) + 0x517CC1B7 * (t[2])) ^ (seed >> 37);
+        size_t seed = 0x9e3779b * (1 + t[0]) + t[1];
+        seed ^= t[2] + 0x9e3779b9 + (seed << 6) + (seed >> 2); 
+        return seed;
     }
 };
 
