@@ -11,7 +11,7 @@
 #include <iostream>     // cout
 #include <chrono>
 #include <numeric>      // reduce
-// #define LENGTH_COMPARE
+#define LENGTH_COMPARE
 
 bool compareLength(const char *filename, const vector<Funnel> &list, const indexType startIndex, const size_t n = 0) {
     const string realFilename = string(filename) + "_s=" + to_string(startIndex);

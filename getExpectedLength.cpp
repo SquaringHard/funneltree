@@ -1,8 +1,3 @@
-// only compile this when results in expected folder are incorrect or missing and you need to re-run getExpectedLength.exe
-
-// #define I_AM_READY_TO_COMPILE_THIS_FILE
-
-#ifdef I_AM_READY_TO_COMPILE_THIS_FILE
 #include "ft.h"
 #include <utility>      // pair
 #include <string>
@@ -61,4 +56,3 @@ int main() {
         for (const double i : shortestLength) output << i << '\n';
     }
 }
-#endif
