@@ -4,8 +4,8 @@ The funnel tree algorithm is an algorithm for finding shortest paths on polyhedr
 # How to use demo
 - compile files: `g++ -o demo main.cpp ft.cpp -fopenmp` (remove `fopenmp` for serial version)
 - run file: `.\demo`, `.\demo spiral1.geom`, `.\demo cube1.geom spiral2.geom sphere4.geom`
-- add datasets in input (refer to the already included .geom files for formats)
-- get lengths of shortest path: run getExpectedLength.exe
+- add datasets in input folder (check the already included .geom files for formats)
+- get lengths of shortest path: compile and run `getExpectedLength.cpp` instead of `main.cpp`
 - compare length: use `#define LENGTH_COMPARE` in main.cpp, run getExpectedLength.exe first
 - run dataset 100 times: replace `run` with `repeat` in `main` function in main.cpp
 
