@@ -19,7 +19,10 @@ bool compareLength(const char *filename, const vector<Funnel> &list, const index
     if (!file.is_open()) throw runtime_error("expected/" + realFilename + ".txt not found");
 
     vector<double> expectedLengths;
-    for (double i; file >> i;) expectedLengths.push_back(i);
+    for (string i; file >> i;) {
+        if (i == "inf") expectedLengths.push_back(INFINITY);
+        else expectedLengths.push_back(stod(i));
+    }
 
     vector<double> lengths(expectedLengths.size(), INFINITY);
     lengths[startIndex] = 0;

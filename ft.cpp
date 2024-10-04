@@ -37,7 +37,10 @@ TriangleMesh::TriangleMesh(const vector<Point> &ps, const vector<Triangle> &ts) 
     for (indexType i = 0; i < v; i++) if (dictVertices[i].empty()) throw logic_error("floating point " + to_string(i));
 }
 
-inline double angle(const double ab2, const double bc2, const double ca2) { return acos((ab2 + bc2 - ca2) / sqrt(ab2 * bc2) / 2); }
+inline double angle(const double ab2, const double bc2, const double ca2) {
+    const double cosABC = (ab2 + bc2 - ca2) / sqrt(ab2 * bc2) / 2;
+    return cosABC >= 1 ? 0 : cosABC <= -1 ? M_PI : acos(cosABC);
+}
 inline double calPV2(const double pqv, const double pq2, const double qv2) { return pq2 + qv2 - sqrt(pq2 * qv2) * cos(pqv) * 2; }
 
 double TriangleMesh::pistance2(const indexType a, const indexType b) const {
@@ -48,7 +51,8 @@ double TriangleMesh::pistance2(const indexType a, const indexType b) const {
 double TriangleMesh::pangle(const indexType a, const indexType b, const indexType c) const {
     const double abx = points[a].x - points[b].x, aby = points[a].y - points[b].y, abz = points[a].z - points[b].z,
                  cbx = points[c].x - points[b].x, cby = points[c].y - points[b].y, cbz = points[c].z - points[b].z;
-    return acos((abx * cbx + aby * cby + abz * cbz) / sqrt((abx * abx + aby * aby + abz * abz) * (cbx * cbx + cby * cby + cbz * cbz)));
+    const double cosABC = (abx * cbx + aby * cby + abz * cbz) / sqrt((abx * abx + aby * aby + abz * abz) * (cbx * cbx + cby * cby + cbz * cbz));
+    return cosABC >= 1 ? 0 : cosABC <= -1 ? M_PI : acos(cosABC);
 }
 
 void flag(vector<Funnel> &list, const size_t i) {

@@ -4,6 +4,7 @@ using namespace std;
 #include <array>
 #include <vector>
 #include <unordered_map>
+#include <cstdint>
 
 
 typedef int indexType;
@@ -21,8 +22,8 @@ struct HashNComp {
     size_t operator()(const Edge &e) const { return e[0] ^ e[1]; }
     bool operator()(const Edge &a, const Edge &b) const { return a[0] == b[0] && a[1] == b[1] || a[0] == b[1] && a[1] == b[0]; }
     size_t operator()(const Triangle &t) const {
-        size_t seed = 0x9e3779b * (1 + t[0]) + t[1];
-        seed ^= t[2] + 0x9e3779b9 + (seed << 6) + (seed >> 2); 
+        size_t seed = int64_t(0x9e3779b) * (1 + t[0]) + t[1];
+        seed ^= t[2] + int64_t(0x9e3779b9) + (seed << 6) + (seed >> 2); 
         return seed;
     }
 };
