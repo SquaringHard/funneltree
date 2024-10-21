@@ -82,7 +82,7 @@ vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType s) {
             psq = mesh.triangles[psqIndex];
             p = q; q = psq[0] + psq[1] + psq[2] - s - p;
 
-            spq = mesh.pangle(s, p, q), psw = mesh.pangle(p, s, q);
+            spq = mesh.pangle(s, p, q); psw = mesh.pangle(p, s, q);
             list[i] = Funnel(p, q, p, facesAt_s, mesh.pistance2(s, p), mesh.pistance2(p, q), spq, psw, psw, 0);
             vector<indexType> &sequence = list[i].sequence;
             swap(*find(sequence.begin(), sequence.end(), psqIndex), sequence[n - 1]);
@@ -123,8 +123,8 @@ vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType s) {
                 goto find_v_suchthat_funnelhas2children;
             }
 
-            const double pvs = angle(pv2, sv2, f.sp2), vsq = f.psq - psv, vsw = f.psw - psv, svq = pvq - pvs;
-            f.pvs = pvs;
+            f.pvs = angle(pv2, sv2, f.sp2);
+            const double vsq = f.psq - psv, vsw = f.psw - psv, svq = pvq - f.pvs;
             #pragma omp atomic capture
             { f.childrenIndex = end; end += 2; }
             list[f.childrenIndex] = Funnel(f.p, v, f.x, f.sequence, f.sp2, pv2, spv, psv, psw_new, f.topright_angle);
@@ -138,7 +138,7 @@ vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType s) {
             const Funnel &oldFunnel = list[temp.first->second];
             const size_t oldChildrenIndex = oldFunnel.childrenIndex;
             const double oldsv2 = list[oldChildrenIndex + 1].sp2;
-            const bool pvs_is_larger_than_pvs2 = pvs > oldFunnel.pvs;
+            const bool pvs_is_larger_than_pvs2 = f.pvs > oldFunnel.pvs;
 
             if (oldsv2 > sv2) { flag(list, oldChildrenIndex + pvs_is_larger_than_pvs2); temp.first->second = i; }
             else if (sv2 > oldsv2) list[f.childrenIndex + !pvs_is_larger_than_pvs2].removed = true;
