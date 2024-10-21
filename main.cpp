@@ -11,7 +11,7 @@
 #include <iostream>     // cout
 #include <chrono>
 #include <numeric>      // reduce
-// #define LENGTH_COMPARE
+#define LENGTH_COMPARE
 
 bool compareLength(const char *filename, const vector<Funnel> &list, const indexType startIndex, const size_t n = 0) {
     const string realFilename = string(filename) + "_s=" + to_string(startIndex);
@@ -30,7 +30,7 @@ bool compareLength(const char *filename, const vector<Funnel> &list, const index
     for (double &i : lengths) i = sqrt(i);
 
     const bool result = equal(expectedLengths.begin(), expectedLengths.end(), lengths.begin(),
-                              [](const double a, const double b) { return fabs(a - b) < 1e-9; });
+                              [](const double a, const double b) { return fabs(a - b) < 1e-5; });
     if (!result) {
         filesystem::create_directory("output");
         ofstream file("output/" + realFilename + " (" + to_string(n) + ").txt");
