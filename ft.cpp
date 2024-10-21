@@ -102,7 +102,7 @@ vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType s) {
 
             const array<indexType, 2> eFaces = mesh.dictEdges.at({f.x, f.q});
             const indexType nextFace = eFaces[eFaces[0] == f.sequence.back()];
-            if (find(f.sequence.begin(), f.sequence.end(), nextFace) != f.sequence.end()) continue; // move to next i
+            if (find(f.sequence.begin(), f.sequence.end(), nextFace) != f.sequence.end()) continue;
 
             f.sequence.push_back(nextFace);
             indexType v;
@@ -118,7 +118,7 @@ vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType s) {
             const double sv2 = calPV2(spv, f.sp2, pv2), psv = angle(f.sp2, sv2, pv2), pvq = angle(pv2, vq2, f.pq2), psw_new = min(f.psw, psv);
             f.topright_angle = max(mesh.pangle(f.x, v, f.q) - pvq * sign, 0.0);
 
-            if (!(psv < f.psw)) { // bet ur temping to write psv >= psw
+            if (psv >= f.psw) {
                 f.q = v; f.pq2 = pv2; f.spq = spv; f.psq = psv; f.psw = psw_new;
                 goto find_v_suchthat_funnelhas2children;
             }
