@@ -131,9 +131,8 @@ vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType s) {
             list[f.childrenIndex + 1] = Funnel(v, f.q, v, f.sequence, sv2, vq2, svq, vsw, 0);
 
             pair<FunnelDict::iterator, bool> temp;
-            const pair<size_t, double> i_pvs(i, pvs);
             #pragma omp critical
-            temp = twoChildrenFunnels.try_emplace({f.p, v, f.q}, i_pvs);
+            temp = twoChildrenFunnels.try_emplace({f.p, v, f.q}, make_pair(i, pvs));
             if (temp.second) continue;
 
             const Funnel &oldFunnel = list[temp.first->second.first];
@@ -141,7 +140,7 @@ vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType s) {
             const double oldsv2 = list[oldChildrenIndex + 1].sp2;
             const bool pvs_is_larger_than_pvs2 = pvs > temp.first->second.second;
 
-            if (oldsv2 > sv2) { flag(list, oldChildrenIndex + pvs_is_larger_than_pvs2); temp.first->second = i_pvs; }
+            if (oldsv2 > sv2) { flag(list, oldChildrenIndex + pvs_is_larger_than_pvs2); temp.first->second = make_pair(i, pvs); }
             else if (sv2 > oldsv2) list[f.childrenIndex + !pvs_is_larger_than_pvs2].removed = true;
             else { list[f.childrenIndex + !pvs_is_larger_than_pvs2].removed = true; flag(list, oldChildrenIndex + pvs_is_larger_than_pvs2); }
         }
