@@ -41,13 +41,13 @@ struct TriangleMesh {
 struct Funnel {
     size_t childrenIndex;
     vector<indexType> sequence;
-    double sp2, pq2, spq, psq, psw, topright_angle, pvs;
+    double sp2, pq2, spq, psw, topright_angle;
     indexType p, q, x;
     bool removed;
     Funnel() = default;
     Funnel(const indexType p, const indexType q, const indexType x, const vector<indexType> &sequence, const double sp2, const double pq2,
-           const double spq, const double psq, const double psw, const double topright_angle)
-    : childrenIndex(0), sequence(sequence), p(p), q(q), x(x), sp2(sp2), pq2(pq2), spq(spq), psq(psq), psw(psw), topright_angle(topright_angle), removed(false) {}
+           const double spq, const double psw, const double topright_angle)
+    : childrenIndex(0), sequence(sequence), p(p), q(q), x(x), sp2(sp2), pq2(pq2), spq(spq), psw(psw), topright_angle(topright_angle), removed(false) {}
 };
 
 vector<Funnel> FunnelTree(const TriangleMesh& mesh, const indexType startIndex);
